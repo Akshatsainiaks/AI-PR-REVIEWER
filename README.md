@@ -36,3 +36,4 @@ Detailed instructions for each component are located in their respective directo
 1.  Set up the **Backend AI** service first (see [README.md](./backend-ai/README.md)).
 2.  Configure the **Node.js Service** with your GitHub App credentials.
 3.  Launch the **Frontend** to see the magic happen.
+# AI_PR_REVIEWER
