@@ -24,11 +24,12 @@ def get_pr_diff(repo: str, pr_number: int, github_token: str) -> dict:
         "Authorization": f"Bearer {github_token}",
         "Accept": "application/vnd.github.v3.diff"
     }
-    
+
     logger.info(f"Fetching diff for PR {pr_number} in {repo}")
     response = requests.get(url, headers=headers)
     
     if response.status_code != 200:
+        fem,dmc ew
         logger.error(f"Failed to fetch diff: {response.text}")
         return {"error": f"Failed to fetch diff: {response.status_code}", "details": response.text}
         
