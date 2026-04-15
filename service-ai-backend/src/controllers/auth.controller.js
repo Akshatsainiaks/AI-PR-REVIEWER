@@ -1,92 +1,109 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcrypt");
 const { nanoid } = require("nanoid");
-
-let users = [];
-
+const prisma = require("../config/prisma");
+const redis = require("../config/redis");
 //  REGISTER
 exports.register = async (req, res) => {
-  const { firstName, lastName, email, password, phone } = req.body;
+  try {
+    const { firstName, lastName, email, password } = req.body;
 
-  if (!firstName || !lastName || !email || !password) {
-    return res.status(400).json({
-      error: "First name, last name, email, password required",
+    // check user exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
     });
+
+    if (existingUser) {
+      return res.status(400).json({ error: "User already exists" });
+    }
+
+    // hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // create user
+    const user = await prisma.user.create({
+      data: {
+        id: "usr_" + nanoid(10),
+        firstName,
+        lastName,
+        email,
+        password: hashedPassword,
+        role: 2,
+      },
+    });
+
+    res.json({
+      message: "User registered",
+      user: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        role: user.role,
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
   }
-
-  const existingUser = users.find((u) => u.email === email);
-  if (existingUser) {
-    return res.status(400).json({ error: "User already exists" });
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  const user = {
-    id: "usr_" + nanoid(10),
-    firstName,
-    lastName,
-    email,
-    password: hashedPassword,
-    role: 2,
-    phone: phone || null,
-  };
-
-  users.push(user);
-
-  res.json({
-    message: "User registered",
-    user: {
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role,
-    },
-  });
 };
 
 //  LOGIN
+
 exports.login = async (req, res) => {
-  const { email, password } = req.body;
+  try {
+    const { email, password } = req.body;
 
-  if (!email || !password) {
-    return res.status(400).json({ error: "Email and password required" });
-  }
+    const user = await prisma.user.findUnique({
+      where: { email },
+    });
 
-  const user = users.find((u) => u.email === email);
+    if (!user) {
+      return res.status(401).json({ error: "User not found" });
+    }
 
-  if (!user) {
-    return res.status(401).json({ error: "User not found" });
-  }
+    const isMatch = await bcrypt.compare(password, user.password);
 
-  const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ error: "Invalid password" });
+    }
 
-  if (!isMatch) {
-    return res.status(401).json({ error: "Invalid password" });
-  }
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "1d" }
+    );
 
-  const token = jwt.sign(
-    {
+    // 🔥 SAFE REDIS STORAGE
+    const sessionData = {
       id: user.id,
       email: user.email,
+      name: user.firstName,
       role: user.role,
-    },
-    process.env.JWT_SECRET || "secret123",
-    { expiresIn: "1d" }
-  );
+      token,
+    };
 
-  res.json({
-    message: "Login successful",
-    token,
-    user: {
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName,
-      email: user.email,
-      role: user.role,
-    },
-  });
+    await redis.set(
+      `session:${user.id}`,
+      JSON.stringify(sessionData),
+      "EX",
+      86400 // 1 day
+    );
+
+    // ❗ remove password before response
+    delete user.password;
+
+    res.json({
+      message: "Login successful",
+      token,
+      user,
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
 };
 
-// 🔹 EXPORT USERS (for admin use)
-exports._users = users;
+// // 🔹 EXPORT USERS (for admin use)
+// exports._users = users;
