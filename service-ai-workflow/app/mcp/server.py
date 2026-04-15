@@ -10,78 +10,118 @@ logger = logging.getLogger(__name__)
 
 mcp = FastMCP("pr-agent-tools")
 
+
 @mcp.tool()
-def get_pr_diff(repo: str, pr_number: int, github_token: str) -> dict:
+def get_pr_diff(repo: str, pr_number: int, github_token: str = None) -> dict:
     """
-    Fetch unified diff for a PR.
+    Fetch the unified diff for a specific GitHub Pull Request.
+
     Args:
-        repo: Repository in format 'owner/repo'
-        pr_number: Pull request number
-        github_token: GitHub Personal Access Token
+        repo (str): Repository in format 'owner/repo'.
+        pr_number (int): The pull request number.
+        github_token (str, optional): GitHub Personal Access Token.
+
+    Returns:
+        dict: A dictionary containing 'diff' string or an 'error' message.
     """
     url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}"
     headers = {
-        "Authorization": f"Bearer {github_token}",
-        "Accept": "application/vnd.github.v3.diff"
+        "Accept": "application/vnd.github.v3.diff",
     }
-    
+    if github_token:
+        headers["Authorization"] = f"Bearer {github_token}"
+
     logger.info(f"Fetching diff for PR {pr_number} in {repo}")
-    response = requests.get(url, headers=headers)
-    
-    if response.status_code != 200:
-        logger.error(f"Failed to fetch diff: {response.text}")
-        return {"error": f"Failed to fetch diff: {response.status_code}", "details": response.text}
-        
-    return {"diff": response.text}
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code != 200:
+            logger.error(
+                f"Failed to fetch diff (status {response.status_code}): {response.text}"
+            )
+            return {
+                "error": f"Failed to fetch diff: {response.status_code}",
+                "details": response.text,
+            }
+        return {"diff": response.text}
+    except Exception as e:
+        logger.error(f"Network error while fetching diff: {str(e)}", exc_info=True)
+        return {"error": f"Network error: {str(e)}"}
+
 
 @mcp.tool()
 def read_file(path: str, workspace: str) -> str:
     """
-    Read file content from cloned workspace.
+    Reads the content of a file from the local workspace.
+
     Args:
-        path: Relative path to the file
-        workspace: Absolute path to the workspace root
+        path (str): Relative path to the file within the workspace.
+        workspace (str): Absolute path to the repository root.
+
+    Returns:
+        str: The content of the file or an error message starting with 'Error:'.
     """
-    full_path = os.path.join(workspace, path)
+    full_path = os.path.normpath(os.path.join(workspace, path))
+    
+    # Security check: ensure path is within workspace
+    if not full_path.startswith(os.path.abspath(workspace)):
+        return f"Error: Attempted to read file outside of workspace: {path}"
+
     if not os.path.exists(full_path):
         return f"Error: File {path} not found in workspace."
-    
+
     try:
-        with open(full_path, "r") as f:
+        with open(full_path, "r", encoding="utf-8") as f:
             return f.read()
     except Exception as e:
+        logger.error(f"Error reading file {path}: {str(e)}", exc_info=True)
         return f"Error reading file: {str(e)}"
+
 
 @mcp.tool()
 def write_file(path: str, content: str, workspace: str) -> bool:
     """
-    Write/overwrite file in workspace.
+    Writes or overwrites a file in the workspace with new content.
+
     Args:
-        path: Relative path to the file
-        content: Content to write
-        workspace: Absolute path to the workspace root
+        path (str): Relative path to the file.
+        content (str): New content for the file.
+        workspace (str): Absolute path to the repository root.
+
+    Returns:
+        bool: True if successful, False otherwise.
     """
-    full_path = os.path.join(workspace, path)
-    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+    full_path = os.path.normpath(os.path.join(workspace, path))
     
+    # Security check: ensure path is within workspace
+    if not full_path.startswith(os.path.abspath(workspace)):
+        logger.error(f"Blocked attempt to write outside of workspace: {path}")
+        return False
+
+    os.makedirs(os.path.dirname(full_path), exist_ok=True)
+
     try:
-        with open(full_path, "w") as f:
+        with open(full_path, "w", encoding="utf-8") as f:
             f.write(content)
         return True
     except Exception as e:
-        logger.error(f"Error writing file {path}: {str(e)}")
+        logger.error(f"Error writing file {path}: {str(e)}", exc_info=True)
         return False
+
 
 @mcp.tool()
 def run_command(command: str, workspace: str, timeout: int = 120) -> dict:
     """
-    Run shell command safely in workspace.
+    Executes a shell command within the workspace directory.
+
     Args:
-        command: Command to execute
-        workspace: Working directory
-        timeout: Execution timeout in seconds
+        command (str): The shell command string to execute.
+        workspace (str): The directory in which to run the command.
+        timeout (int): Maximum execution time in seconds. Defaults to 120.
+
+    Returns:
+        dict: Process result including 'stdout', 'stderr', and 'exit_code'.
     """
-    logger.info(f"Running command: {command} in {workspace}")
+    logger.info(f"Executing command: {command} in {workspace}")
     try:
         result = subprocess.run(
             command,
@@ -89,139 +129,202 @@ def run_command(command: str, workspace: str, timeout: int = 120) -> dict:
             cwd=workspace,
             capture_output=True,
             text=True,
-            timeout=timeout
+            timeout=timeout,
         )
         return {
             "stdout": result.stdout,
             "stderr": result.stderr,
-            "exit_code": result.returncode
+            "exit_code": result.returncode,
         }
     except subprocess.TimeoutExpired:
-        return {"error": "Command timed out", "stdout": "", "stderr": f"Timeout after {timeout}s", "exit_code": -1}
+        logger.error(f"Command timed out after {timeout}s: {command}")
+        return {
+            "error": "Command timed out",
+            "stdout": "",
+            "stderr": f"Timeout after {timeout}s",
+            "exit_code": -1,
+        }
     except Exception as e:
+        logger.error(f"Unhandled error during command execution: {str(e)}", exc_info=True)
         return {"error": str(e), "stdout": "", "stderr": str(e), "exit_code": -1}
 
+
 @mcp.tool()
-def create_pr(title: str, body: str, branch: str, base: str, github_token: str, repo: str) -> dict:
+def create_pr(
+    title: str, body: str, branch: str, base: str, github_token: str, repo: str
+) -> dict:
     """
-    Create GitHub PR via API.
+    Creates a new Pull Request on GitHub.
+
     Args:
-        title: PR Title
-        body: PR Description
-        branch: Head branch (e.g., 'ai/fix-123')
-        base: Base branch (e.g., 'main')
-        github_token: GitHub Personal Access Token
-        repo: Repository in format 'owner/repo'
+        title (str): The title of the PR.
+        body (str): The description or body of the PR.
+        branch (str): The head branch containing changes.
+        base (str): The target base branch (e.g., 'main').
+        github_token (str): GitHub Personal Access Token.
+        repo (str): Repository in 'owner/repo' format.
+
+    Returns:
+        dict: The JSON response from the GitHub API.
     """
     url = f"https://api.github.com/repos/{repo}/pulls"
     headers = {
         "Authorization": f"Bearer {github_token}",
-        "Accept": "application/vnd.github.v3+json"
+        "Accept": "application/vnd.github.v3+json",
     }
-    payload = {
-        "title": title,
-        "body": body,
-        "head": branch,
-        "base": base
-    }
-    
-    logger.info(f"Creating PR in {repo} from {branch} to {base}")
-    res = requests.post(url, json=payload, headers=headers)
-    return res.json()
+    payload = {"title": title, "body": body, "head": branch, "base": base}
+
+    logger.info(f"Creating PR in {repo} for branch {branch}")
+    try:
+        res = requests.post(url, json=payload, headers=headers)
+        return res.json()
+    except Exception as e:
+        logger.error(f"Failed to create PR: {str(e)}", exc_info=True)
+        return {"error": str(e)}
+
 
 @mcp.tool()
-def clone_repo(repo: str, workspace: str, github_token: str) -> dict:
+def clone_repo(
+    repo: str, workspace: str, github_token: str = None
+) -> dict:
     """
-    Clone a repository to the local workspace.
+    Clones a GitHub repository to a local directory or refreshes the remote URL.
+
     Args:
-        repo: Repository in format 'owner/repo'
-        workspace: Local directory to clone into
-        github_token: GitHub Personal Access Token
+        repo (str): Repository in 'owner/repo' format.
+        workspace (str): Absolute directory to clone into.
+        github_token (str, optional): GitHub Personal Access Token for auth.
+
+    Returns:
+        dict: Status message indicating success or failure.
     """
-    repo_url = f"https://x-access-token:{github_token}@github.com/{repo}.git"
-    
-    # Ensure workspace exists
-    os.makedirs(workspace, exist_ok=True)
-    
-    logger.info(f"Cloning {repo} to {workspace}")
+    if github_token:
+        repo_url = f"https://x-access-token:{github_token}@github.com/{repo}.git"
+    else:
+        repo_url = f"https://github.com/{repo}.git"
+
     try:
-        # If directory is not empty, update the remote URL with the latest token
+        os.makedirs(workspace, exist_ok=True)
+        
+        # Branch/Remote refresh logic
         if os.path.exists(workspace) and os.path.isdir(workspace) and os.listdir(workspace):
-            logger.info(f"Workspace {workspace} exists. Refreshing remote URL.")
+            logger.info(f"Refreshing remote URL in existing workspace: {workspace}")
             subprocess.run(
                 ["git", "remote", "set-url", "origin", repo_url],
                 cwd=workspace,
                 capture_output=True,
-                text=True
+                text=True,
+                check=True
             )
             return {"status": "success", "message": "Refreshed remote URL"}
 
+        logger.info(f"Cloning {repo} to {workspace}")
         result = subprocess.run(
             ["git", "clone", repo_url, "."],
             cwd=workspace,
             capture_output=True,
-            text=True
+            text=True,
         )
         if result.returncode != 0:
+            logger.error(f"Clone failed: {result.stderr}")
             return {"status": "error", "stderr": result.stderr}
         return {"status": "success", "message": f"Cloned {repo} successfully"}
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Git command failed: {e.stderr}", exc_info=True)
+        return {"status": "error", "message": "Git operation failed", "stderr": e.stderr}
     except Exception as e:
+        logger.error(f"Failed to clone repository: {str(e)}", exc_info=True)
         return {"status": "error", "message": str(e)}
+
 
 @mcp.tool()
 def commit_and_push(workspace: str, branch: str, message: str) -> dict:
     """
-    Commit all changes and push to the remote branch.
+    Stages all changes, commits, and pushes them to the specified branch.
+
     Args:
-        workspace: Local repository directory
-        branch: Branch to push to
-        message: Commit message
+        workspace (str): Directory of the local repository.
+        branch (str): Remote branch to target.
+        message (str): The commit message.
+
+    Returns:
+        dict: Status object with success or error details.
     """
     try:
-        # Configure local user for commit if not set
-        subprocess.run(["git", "config", "user.email", "ai-agent@example.com"], cwd=workspace)
-        subprocess.run(["git", "config", "user.name", "AI Agent"], cwd=workspace)
+        # Default Git config for the AI agent
+        subprocess.run(
+            ["git", "config", "user.email", "ai-agent@example.com"], cwd=workspace, check=True
+        )
+        subprocess.run(
+            ["git", "config", "user.name", "AI Agent"], cwd=workspace, check=True
+        )
+
+        subprocess.run(["git", "add", "."], cwd=workspace, check=True)
+
+        commit_res = subprocess.run(
+            ["git", "commit", "-m", message],
+            cwd=workspace,
+            capture_output=True,
+            text=True,
+        )
         
-        # Add all
-        subprocess.run(["git", "add", "."], cwd=workspace)
-        
-        # Commit
-        commit_res = subprocess.run(["git", "commit", "-m", message], cwd=workspace, capture_output=True, text=True)
         if commit_res.returncode != 0:
-            if "nothing to commit" in commit_res.stdout or "nothing to commit" in commit_res.stderr:
-                logger.info("Nothing to commit, working tree clean. Proceeding to push.")
+            output = commit_res.stdout + commit_res.stderr
+            if "nothing to commit" in output.lower():
+                logger.info("Nothing to commit (working tree clean). Still attempting push.")
             else:
-                logger.error(f"Commit failed: {commit_res.stderr}")
-                return {"status": "error", "message": "Commit failed", "stderr": commit_res.stderr}
-            
-        # Push
-        push_res = subprocess.run(["git", "push", "origin", branch], cwd=workspace, capture_output=True, text=True)
+                logger.error(f"Commit failed: {output}")
+                return {"status": "error", "message": "Commit failed", "stderr": output}
+
+        push_res = subprocess.run(
+            ["git", "push", "origin", branch],
+            cwd=workspace,
+            capture_output=True,
+            text=True,
+        )
+        
         if push_res.returncode != 0:
             logger.error(f"Push failed: {push_res.stderr}")
             return {"status": "error", "message": "Push failed", "stderr": push_res.stderr}
-            
+
         return {"status": "success", "message": "Committed and pushed successfully"}
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Git execution error: {str(e)}")
+        return {"status": "error", "message": "Git command failed", "stderr": str(e)}
     except Exception as e:
+        logger.error(f"Unexpected error in commit_and_push: {str(e)}", exc_info=True)
         return {"status": "error", "message": str(e)}
 
+
 @mcp.tool()
-def merge_pr(repo: str, pr_number: int, github_token: str) -> dict:
+def merge_pr(repo: str, pr_number: int, github_token: str = None) -> dict:
     """
-    Merge a GitHub Pull Request.
+    Merges an open Pull Request on GitHub.
+
     Args:
-        repo: Repository in format 'owner/repo'
-        pr_number: Pull request number
-        github_token: GitHub Personal Access Token
+        repo (str): Repository in 'owner/repo' format.
+        pr_number (int): Pull request number.
+        github_token (str, optional): Token required for authenticated API call.
+
+    Returns:
+        dict: JSON response from the merge API call.
     """
+    if not github_token:
+        return {
+            "status": "error",
+            "message": "GitHub token is required for merging via API.",
+        }
+
     url = f"https://api.github.com/repos/{repo}/pulls/{pr_number}/merge"
     headers = {
         "Authorization": f"Bearer {github_token}",
-        "Accept": "application/vnd.github.v3+json"
+        "Accept": "application/vnd.github.v3+json",
     }
-    
+
     logger.info(f"Merging PR {pr_number} in {repo}")
-    res = requests.put(url, headers=headers)
     try:
+        res = requests.put(url, headers=headers)
         return res.json()
-    except:
-        return {"status": res.status_code, "text": res.text}
+    except Exception as e:
+        logger.error(f"Error merging PR: {str(e)}", exc_info=True)
+        return {"error": str(e)}

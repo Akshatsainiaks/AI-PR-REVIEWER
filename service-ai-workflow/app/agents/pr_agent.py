@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import re
 from groq import Groq
 from dotenv import load_dotenv
 
@@ -8,18 +9,37 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
+
 class PRAgent:
+    """
+    AI Agent responsible for analyzing code changes and generating fixes.
+    Uses Groq LLM for reasoning and code generation.
+    """
+
     def __init__(self):
+        """
+        Initializes the PRAgent with API keys and model configuration.
+        
+        Raises:
+            ValueError: If GROQ_API_KEY is not found in environment.
+        """
         self.api_key = os.getenv("GROQ_API_KEY")
         self.model = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
         if not self.api_key:
             raise ValueError("GROQ_API_KEY not found in environment")
-        
+
         self.client = Groq(api_key=self.api_key)
 
     def analyze_diff(self, diff_text: str) -> dict:
         """
-        Analyzes a git diff using Groq LLM.
+        Analyzes a git diff using Groq LLM to identify bugs and security issues.
+
+        Args:
+            diff_text: The unified git diff string to analyze.
+
+        Returns:
+            dict: Structured analysis containing 'is_correct', 'summary', 
+                  'problems', and 'fix_suggested'.
         """
         prompt = f"""
         Analyze the following git diff and identify any potential bugs, security issues, or code quality problems.
@@ -38,27 +58,56 @@ class PRAgent:
 
         JSON OUTPUT:
         """
-        
+
         try:
             response = self.client.chat.completions.create(
                 messages=[
-                    {"role": "system", "content": "You are an expert software engineer. Always respond with valid JSON."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are an expert software engineer. Always respond with valid JSON.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
                 model=self.model,
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
-            
-            analysis = json.loads(response.choices[0].message.content)
+
+            response_content = response.choices[0].message.content
+            if not response_content:
+                throw_err = "Empty response from LLM"
+                raise ValueError(throw_err)
+                
+            analysis = json.loads(response_content)
             logger.info(f"AI Analysis: {analysis}")
             return analysis
         except Exception as e:
-            logger.error(f"Error analyzing diff: {str(e)}")
-            return {"error": str(e), "is_correct": False, "problems": [{"file": "unknown", "issue": "AI analysis failed", "severity": "high", "suggestion": "Check logs"}]}
+            logger.error(f"Error analyzing diff: {str(e)}", exc_info=True)
+            return {
+                "error": str(e),
+                "is_correct": False,
+                "problems": [
+                    {
+                        "file": "unknown",
+                        "issue": f"AI analysis failed: {str(e)}",
+                        "severity": "high",
+                        "suggestion": "Check server logs for traceback",
+                    }
+                ],
+            }
 
-    def generate_fix(self, diff_text: str, file_path: str, original_content: str) -> str:
+    def generate_fix(
+        self, diff_text: str, file_path: str, original_content: str
+    ) -> str:
         """
-        Generates fixed content for a file.
+        Generates fixed content for a specific file based on a diff and identified issues.
+
+        Args:
+            diff_text: The diff that introduced the issues.
+            file_path: Relative path to the file being fixed.
+            original_content: Current content of the file.
+
+        Returns:
+            str: The entire corrected file content. Returns original if generation fails.
         """
         prompt = f"""
         The following file has issues identified in a recent change (diff).
@@ -76,27 +125,41 @@ class PRAgent:
         
         Please return ONLY the corrected file content, no explanations or markdown blocks.
         """
-        
+
         try:
             response = self.client.chat.completions.create(
                 messages=[
-                    {"role": "system", "content": "You are an expert developer. Provide only the raw source code."},
-                    {"role": "user", "content": prompt}
+                    {
+                        "role": "system",
+                        "content": "You are an expert developer. Provide only the raw source code. No conversational text.",
+                    },
+                    {"role": "user", "content": prompt},
                 ],
-                model=self.model
+                model=self.model,
             )
-            
+
             fixed_content = response.choices[0].message.content.strip()
-            # Remove markdown code blocks if the LLM included them
-            if fixed_content.startswith("```"):
-                lines = fixed_content.split("\n")
-                if lines[0].startswith("```"):
-                    lines = lines[1:]
-                if lines[-1].strip() == "```":
-                    lines = lines[:-1]
-                fixed_content = "\n".join(lines).strip()
-                
-            return fixed_content
+            
+            # More robust markdown block removal
+            cleaned_content = self._strip_markdown_code_blocks(fixed_content)
+            
+            return cleaned_content or original_content
         except Exception as e:
-            logger.error(f"Error generating fix: {str(e)}")
+            logger.error(f"Error generating fix for {file_path}: {str(e)}", exc_info=True)
             return original_content
+
+    def _strip_markdown_code_blocks(self, content: str) -> str:
+        """
+        Removes markdown code block delimiters (```) from LLM output.
+
+        Args:
+            content: Raw string from LLM.
+
+        Returns:
+            str: Content without code block fences.
+        """
+        # Remove opening fence (e.g., ```python or ```)
+        content = re.sub(r"^```[a-zA-Z]*\n", "", content)
+        # Remove closing fence
+        content = re.sub(r"\n```$", "", content)
+        return content.strip()
