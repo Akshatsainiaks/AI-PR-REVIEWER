@@ -1,12 +1,13 @@
 import os
+import logging
+import re
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
-import logging
 from elasticsearch import Elasticsearch
 
-
-from app.mcp import mcp
+from app.mcp.server import mcp, get_pr_diff, clone_repo, read_file, write_file, commit_and_push, merge_pr
+from app.agents.pr_agent import PRAgent
 
 # Load environment variables
 load_dotenv()
@@ -21,10 +22,12 @@ app = FastAPI(title="AI PR Agent - Backend AI")
 elasticsearch_url = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
 es = Elasticsearch(elasticsearch_url)
 
+# Initialize PR Agent
+pr_agent = PRAgent()
 
 class AnalyzeRequest(BaseModel):
     pr_id: int
-    repo: str
+    repo: str  # owner/repo
     branch: str
     base: str = "main"
 
@@ -43,33 +46,95 @@ async def health():
         "elasticsearch": es_status
     }
 
+def get_files_from_diff(diff_text: str):
+    """Extract file paths from a unified git diff."""
+    return re.findall(r"diff --git a/(.*?) b/", diff_text)
+
 @app.post("/agent/analyze")
-async def analyze_pr(request: AnalyzeRequest, background_tasks: BackgroundTasks):
+async def analyze_pr(request: AnalyzeRequest):
     """
-    Endpoint to trigger PR analysis.
-    This will eventually call the AI reasoning loop.
+    Endpoint to analyze PR changes using Groq.
     """
-    logger.info(f"Received analysis request for PR {request.pr_id} in {request.repo}")
-    
-    # TODO: Implement AI reasoning loop
-    # 1. Clone repo to WORK_DIR
-    # 2. Extract diff using MCP tool
-    # 3. Analyze with LLM
-    # 4. Plan fixes
-    
-    return {"message": "Analysis started", "pr_id": request.pr_id}
+    github_token = os.getenv("GITHUB_TOKEN")
+    if not github_token:
+        raise HTTPException(status_code=500, detail="GITHUB_TOKEN not configured")
 
-@app.post("/agent/apply")
-async def apply_fix(request: AnalyzeRequest):
-    """
-    Endpoint to apply suggested fixes.
-    """
-    logger.info(f"Applying fix for PR {request.pr_id}")
-    return {"message": "Fix application initiated", "pr_id": request.pr_id}
+    logger.info(f"Analyzing PR {request.pr_id} in {request.repo}")
+    
+    # 1. Fetch Diff
+    diff_data = get_pr_diff(request.repo, request.pr_id, github_token)
+    if "error" in diff_data:
+        raise HTTPException(status_code=400, detail=diff_data["error"])
+    
+    diff_text = diff_data["diff"]
+    
+    # 2. Analyze with LLM
+    analysis = pr_agent.analyze_diff(diff_text)
+    
+    return {
+        "pr_id": request.pr_id,
+        "analysis": analysis
+    }
 
-# Note: In a production setup, you might want to run the MCP server 
-# as a separate process or integrated via a specific protocol.
-# Here we've defined the tools that the agent will use internally.
+@app.post("/agent/fix-and-merge")
+async def fix_and_merge(request: AnalyzeRequest):
+    """
+    Endpoint to analyze, fix, and merge a PR.
+    """
+    github_token = os.getenv("GITHUB_TOKEN")
+    work_dir_base = os.getenv("WORK_DIR", "/tmp/ai-agent-workspace")
+    if not github_token:
+        raise HTTPException(status_code=500, detail="GITHUB_TOKEN not configured")
+
+    logger.info(f"Starting Fix & Merge for PR {request.pr_id} in {request.repo}")
+    
+    # 1. Fetch Diff and Analyze
+    diff_data = get_pr_diff(request.repo, request.pr_id, github_token)
+    if "error" in diff_data:
+        raise HTTPException(status_code=400, detail=diff_data["error"])
+    
+    diff_text = diff_data["diff"]
+    analysis = pr_agent.analyze_diff(diff_text)
+    
+    if analysis.get("is_correct") and not analysis.get("fix_suggested"):
+        logger.info(f"PR {request.pr_id} is correct. Proceeding to merge.")
+    else:
+        logger.info(f"PR {request.pr_id} has issues. Attempting to fix.")
+        
+        # 2. Clone Repo
+        workspace = os.path.join(work_dir_base, str(request.pr_id))
+        clone_res = clone_repo(request.repo, workspace, github_token)
+        if clone_res.get("status") == "error":
+             raise HTTPException(status_code=500, detail=f"Failed to clone: {clone_res.get('stderr')}")
+
+        # Checkout branch if not already there
+        import subprocess
+        subprocess.run(["git", "checkout", request.branch], cwd=workspace)
+
+        # 3. Apply Fixes
+        files = get_files_from_diff(diff_text)
+        for file_path in files:
+            original_content = read_file(file_path, workspace)
+            if original_content.startswith("Error:"):
+                logger.warning(f"Could not read file {file_path}: {original_content}")
+                continue
+            
+            fixed_content = pr_agent.generate_fix(diff_text, file_path, original_content)
+            write_file(file_path, fixed_content, workspace)
+        
+        # 4. Commit and Push
+        push_res = commit_and_push(workspace, request.branch, "AI-generated fixes for PR issues")
+        if push_res.get("status") == "error":
+            raise HTTPException(status_code=500, detail=push_res.get("message"))
+
+    # 5. Merge PR
+    merge_res = merge_pr(request.repo, request.pr_id, github_token)
+    
+    return {
+        "pr_id": request.pr_id,
+        "analysis": analysis,
+        "merge_status": merge_res
+    }
 
 if __name__ == "__main__":
     import uvicorn
