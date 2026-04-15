@@ -145,10 +145,16 @@ def clone_repo(repo: str, workspace: str, github_token: str) -> dict:
     
     logger.info(f"Cloning {repo} to {workspace}")
     try:
-        # If directory is not empty, we assume it's already cloned or we should clean it
-        if os.listdir(workspace):
-            logger.warning(f"Workspace {workspace} is not empty. Skipping clone.")
-            return {"status": "already_exists", "message": "Workspace not empty"}
+        # If directory is not empty, update the remote URL with the latest token
+        if os.path.exists(workspace) and os.path.isdir(workspace) and os.listdir(workspace):
+            logger.info(f"Workspace {workspace} exists. Refreshing remote URL.")
+            subprocess.run(
+                ["git", "remote", "set-url", "origin", repo_url],
+                cwd=workspace,
+                capture_output=True,
+                text=True
+            )
+            return {"status": "success", "message": "Refreshed remote URL"}
 
         result = subprocess.run(
             ["git", "clone", repo_url, "."],
@@ -182,11 +188,16 @@ def commit_and_push(workspace: str, branch: str, message: str) -> dict:
         # Commit
         commit_res = subprocess.run(["git", "commit", "-m", message], cwd=workspace, capture_output=True, text=True)
         if commit_res.returncode != 0:
-            return {"status": "error", "message": "Commit failed", "stderr": commit_res.stderr}
+            if "nothing to commit" in commit_res.stdout or "nothing to commit" in commit_res.stderr:
+                logger.info("Nothing to commit, working tree clean. Proceeding to push.")
+            else:
+                logger.error(f"Commit failed: {commit_res.stderr}")
+                return {"status": "error", "message": "Commit failed", "stderr": commit_res.stderr}
             
         # Push
         push_res = subprocess.run(["git", "push", "origin", branch], cwd=workspace, capture_output=True, text=True)
         if push_res.returncode != 0:
+            logger.error(f"Push failed: {push_res.stderr}")
             return {"status": "error", "message": "Push failed", "stderr": push_res.stderr}
             
         return {"status": "success", "message": "Committed and pushed successfully"}

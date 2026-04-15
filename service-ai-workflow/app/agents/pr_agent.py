@@ -24,10 +24,14 @@ class PRAgent:
         prompt = f"""
         Analyze the following git diff and identify any potential bugs, security issues, or code quality problems.
         Provide your analysis in a structured JSON format with the following keys:
-        - "is_correct": boolean, true if the code is correct and follows best practices.
-        - "issues": list of strings, each describing a specific issue found.
-        - "fix_suggested": boolean, true if a fix is needed.
-        - "summary": a brief summary of your analysis.
+        - "is_correct": boolean (true if no issues found)
+        - "summary": a brief summary of the changes
+        - "problems": a list of objects, each with:
+            - "file": path to the file
+            - "issue": description of the problem
+            - "severity": "low", "medium", or "high"
+            - "suggestion": how to fix it
+        - "fix_suggested": boolean (true if the AI should attempt to fix these)
 
         GIT DIFF:
         {diff_text}
@@ -38,7 +42,7 @@ class PRAgent:
         try:
             response = self.client.chat.completions.create(
                 messages=[
-                    {"role": "system", "content": "You are an expert software engineer and code reviewer."},
+                    {"role": "system", "content": "You are an expert software engineer. Always respond with valid JSON."},
                     {"role": "user", "content": prompt}
                 ],
                 model=self.model,
@@ -50,7 +54,7 @@ class PRAgent:
             return analysis
         except Exception as e:
             logger.error(f"Error analyzing diff: {str(e)}")
-            return {"error": str(e), "is_correct": False, "issues": ["AI analysis failed"]}
+            return {"error": str(e), "is_correct": False, "problems": [{"file": "unknown", "issue": "AI analysis failed", "severity": "high", "suggestion": "Check logs"}]}
 
     def generate_fix(self, diff_text: str, file_path: str, original_content: str) -> str:
         """

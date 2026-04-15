@@ -2,7 +2,7 @@ import os
 import logging
 import re
 from fastapi import FastAPI, BackgroundTasks, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 from elasticsearch import Elasticsearch
 
@@ -26,10 +26,10 @@ es = Elasticsearch(elasticsearch_url)
 pr_agent = PRAgent()
 
 class AnalyzeRequest(BaseModel):
-    pr_id: int
-    repo: str  # owner/repo
-    branch: str
-    base: str = "main"
+    pr_id: int = Field(..., description="The pull request number", json_schema_extra={"example": 7})
+    repo: str = Field(..., description="Repository in 'owner/repo' format", json_schema_extra={"example": "Akshatsainiaks/AI-PR-REVIEWER"})
+    branch: str = Field(..., description="The branch name of the PR", json_schema_extra={"example": "nmana"})
+    base: str = Field("main", description="The base branch of the PR", json_schema_extra={"example": "main"})
 
 @app.get("/health")
 async def health():
@@ -61,6 +61,9 @@ async def analyze_pr(request: AnalyzeRequest):
 
     logger.info(f"Analyzing PR {request.pr_id} in {request.repo}")
     
+    # Ensure repo format is clean
+    request.repo = request.repo.strip("/")
+    
     # 1. Fetch Diff
     diff_data = get_pr_diff(request.repo, request.pr_id, github_token)
     if "error" in diff_data:
@@ -88,6 +91,9 @@ async def fix_and_merge(request: AnalyzeRequest):
 
     logger.info(f"Starting Fix & Merge for PR {request.pr_id} in {request.repo}")
     
+    # Ensure repo format is clean
+    request.repo = request.repo.strip("/")
+
     # 1. Fetch Diff and Analyze
     diff_data = get_pr_diff(request.repo, request.pr_id, github_token)
     if "error" in diff_data:
@@ -125,7 +131,7 @@ async def fix_and_merge(request: AnalyzeRequest):
         # 4. Commit and Push
         push_res = commit_and_push(workspace, request.branch, "AI-generated fixes for PR issues")
         if push_res.get("status") == "error":
-            raise HTTPException(status_code=500, detail=push_res.get("message"))
+            raise HTTPException(status_code=500, detail=f"Push failed: {push_res.get('stderr')}")
 
     # 5. Merge PR
     merge_res = merge_pr(request.repo, request.pr_id, github_token)
