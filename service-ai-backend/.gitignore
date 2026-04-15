@@ -19,3 +19,4 @@ build/
 # editor files
 .vscode/
 .idea/
+/src/generated/prisma
