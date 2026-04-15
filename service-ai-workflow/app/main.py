@@ -3,6 +3,8 @@ from fastapi import FastAPI, BackgroundTasks, HTTPException
 from pydantic import BaseModel
 from dotenv import load_dotenv
 import logging
+from elasticsearch import Elasticsearch
+
 
 from app.mcp import mcp
 
@@ -15,6 +17,11 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="AI PR Agent - Backend AI")
 
+# Initialize Elasticsearch
+elasticsearch_url = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
+es = Elasticsearch(elasticsearch_url)
+
+
 class AnalyzeRequest(BaseModel):
     pr_id: int
     repo: str
@@ -23,7 +30,18 @@ class AnalyzeRequest(BaseModel):
 
 @app.get("/health")
 async def health():
-    return {"status": "healthy", "service": "backend-ai"}
+    es_status = "unhealthy"
+    try:
+        if es.ping():
+            es_status = "healthy"
+    except Exception as e:
+        logger.error(f"Elasticsearch health check failed: {e}")
+        
+    return {
+        "status": "healthy", 
+        "service": "backend-ai",
+        "elasticsearch": es_status
+    }
 
 @app.post("/agent/analyze")
 async def analyze_pr(request: AnalyzeRequest, background_tasks: BackgroundTasks):
