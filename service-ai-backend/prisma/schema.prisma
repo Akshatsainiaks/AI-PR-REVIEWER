@@ -7,21 +7,20 @@ datasource db {
 }
 
 model User {
-  id        String @id
+  id        String   @id @default(cuid())
   firstName String
   lastName  String
-  email     String @unique
+  email     String   @unique
   password  String
   role      Int
   createdAt DateTime @default(now())
 }
 
-model PRJob {
-  id        String @id
-  prUrl     String
-  status    String
-  result    Json?
-  userId    String
+model PrJob {
+  id      String   @id @default(cuid())
+  prUrl   String
+  status  String
+  userId  String
   createdAt DateTime @default(now())
 }
 

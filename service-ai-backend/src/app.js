@@ -1,7 +1,18 @@
 const express = require("express");
 const cors = require("cors");
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./config/swagger");
 
 const app = express();
+
+
+app.use(
+  express.json({
+    verify: (req, res, buf) => {
+      req.rawBody = buf;
+    },
+  })
+);
 
 
 app.use(
@@ -11,16 +22,28 @@ app.use(
   })
 );
 
-app.use(express.json());
 
-// routes
 const authRoutes = require("./routes/auth.routes");
 const adminRoutes = require("./routes/admin.routes");
+const prRoutes = require("./routes/pr.routes");
+const webhookRoutes = require("./routes/webhook.routes");
+
 
 app.use("/api/auth", authRoutes);
-app.use("/api/admin", adminRoutes);
 
-// test route
+app.use("/api/admin", adminRoutes);
+app.use("/api/pr", prRoutes);
+app.use("/api/webhooks", webhookRoutes);
+
+
+app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+
+app.get("/api/docs.json", (req, res) => {
+  res.json(swaggerSpec);
+});
+
+
 app.get("/", (req, res) => {
   res.send("API running 🚀");
 });
