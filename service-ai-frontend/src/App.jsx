@@ -1,16 +1,16 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Landing from "./pages/Landing";
+import Index from "./pages/Index";
 import Login from "./pages/Login";
-import Register from "./pages/Register";
-
+import Signup from "./pages/Signup";
+import Dashboard from "./pages/Dashboard";
 
 export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Landing />} />
+        <Route path="/" element={<Index />} />
         <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </BrowserRouter>
   );
