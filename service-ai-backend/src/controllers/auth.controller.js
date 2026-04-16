@@ -93,11 +93,15 @@ exports.login = async (req, res) => {
     // ❗ remove password before response
     delete user.password;
 
-    res.json({
-      message: "Login successful",
-      token,
-      user,
-    });
+   res.json({
+  message: "Login successful",
+  token,
+  user: {
+    id: user.id,
+    email: user.email,
+    firstName: user.firstName,
+  },
+});
 
   } catch (err) {
     console.error(err);
