@@ -1,34 +1,26 @@
-import React, { useState } from "react"
-import { createFileRoute } from "@tanstack/react-router"
-import { motion } from "framer-motion"
-import { Search, Filter, GitBranch, FolderGit2 } from "lucide-react"
+  import React, { useState, useEffect } from "react"
+  import { createFileRoute } from "@tanstack/react-router"
+  import { motion } from "framer-motion"
+  import { Search, Filter, GitBranch, FolderGit2 } from "lucide-react"
+  import { PRCard } from "../pages/PRCard";
+  import { SkeletonPR } from "../ui/SkeletonPR";
+  import { Header } from "../ui/Header"
+  import { Input } from "../ui/input"
 
-import { Header } from "../ui/Header"
-import { Input } from "../ui/input"
+  export const Route = createFileRoute("/dashboard")({
+    component: Dashboard,
+  })
 
-export const Route = createFileRoute("/dashboard")({
-  component: Dashboard,
-})
+  const repos = [
+    { name: "frontend-app", prs: 5, language: "JavaScript" },
+    { name: "api-server", prs: 3, language: "Python" },
+    { name: "mobile-sdk", prs: 2, language: "Kotlin" },
+    { name: "design-system", prs: 1, language: "JavaScript" },
+  ]
 
-const repos = [
-  { name: "frontend-app", prs: 5, language: "TypeScript" },
-  { name: "api-server", prs: 3, language: "Python" },
-  { name: "mobile-sdk", prs: 2, language: "Kotlin" },
-  { name: "design-system", prs: 1, language: "TypeScript" },
-]
+ 
 
-useEffect(() => {
-  const token = localStorage.getItem("token");
-
-  if (!token) {
-    window.location.href = "/login";
-  }
-}, []);
-
-const handleLogout = () => {
-  localStorage.removeItem("token");
-  window.location.href = "/login";
-};
+  
 
 const mockPRs = [
   {
@@ -137,6 +129,19 @@ function Dashboard() {
     return matchesSearch && matchesRepo
   })
 
+   useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      window.location.href = "/login";
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -240,11 +245,11 @@ function Dashboard() {
             </div>
 
             PR list
-            {/* <div className="space-y-3">
+             <div className="space-y-3">
               {filteredPRs.map((pr, i) => (
                 <PRCard key={pr.id} pr={pr} index={i} />
               ))}
-            </div> */}
+            </div> 
           </div>
 
         </div>

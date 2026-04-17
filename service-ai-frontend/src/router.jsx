@@ -5,7 +5,7 @@ import Index from "./pages/Index"
 import Login from "./pages/Login"
 import Signup from "./pages/Signup"
 import Dashboard from "./pages/Dashboard"
-
+import PRDetails from "./pages/PRDetails";
 function DefaultErrorComponent({ error, reset }) {
   const router = useRouter()
 
@@ -53,11 +53,18 @@ const dashboardRoute = createRoute({
   component: Dashboard,
 })
 
+const prRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/pr/$prId",
+  component: PRDetails,
+});
+
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
   signupRoute,
   dashboardRoute,
+  prRoute,
 ])
 
 
