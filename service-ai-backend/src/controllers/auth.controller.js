@@ -8,9 +8,18 @@ const logger = require("../utils/logger");
 
 exports.register = async (req, res) => {
   try {
-    const { fullName, email, password } = req.body;
+  const { fullName, name, firstName, lastName, email, password } = req.body;
 
-    logger.info("📝 Register attempt", { email });
+logger.info("📝 Register attempt", { email });
+
+const finalName =
+  fullName ||
+  name ||
+  `${firstName || ""} ${lastName || ""}`.trim();
+
+if (!finalName) {
+  return res.status(400).json({ error: "Full name is required" });
+}
 
 
     const passwordRegex =
@@ -23,7 +32,7 @@ exports.register = async (req, res) => {
       });
     }
 
-
+ 
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
@@ -40,7 +49,7 @@ exports.register = async (req, res) => {
     const user = await prisma.user.create({
       data: {
         id: "usr_" + nanoid(10),
-        fullName,
+        fullName: finalName,
         email,
         password: hashedPassword,
         role: 2,
@@ -58,7 +67,6 @@ exports.register = async (req, res) => {
         role: user.role,
       },
     });
-
   } catch (err) {
     logger.error("🔥 Register error", err);
     res.status(500).json({ error: "Server error" });
