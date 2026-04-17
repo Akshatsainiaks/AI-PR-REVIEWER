@@ -1,24 +1,51 @@
-const { _users: users } = require("./auth.controller");
+const prisma = require("../config/prisma");
+const logger = require("../utils/logger");
 
-// 🔹 MAKE ADMIN (role = 1)
-exports.makeAdmin = (req, res) => {
-  const { userId } = req.params;
 
-  // check current user is admin
-  if (req.user.role !== 1) {
-    return res.status(403).json({ error: "Only admin can promote users" });
+exports.makeAdmin = async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    logger.info("👑 Admin promotion request", { userId });
+
+    if (req.user.role !== 1) {
+      logger.warn("❌ Unauthorized admin attempt", {
+        requester: req.user.id,
+      });
+      return res.status(403).json({
+        error: "Only admin can promote users",
+      });
+    }
+
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      logger.warn("❌ User not found for promotion", { userId });
+      return res.status(404).json({ error: "User not found" });
+    }
+
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role: 1 },
+    });
+
+    logger.info("✅ User promoted to admin", { userId });
+
+    res.json({
+      message: "User promoted to admin",
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        role: updatedUser.role,
+      },
+    });
+
+  } catch (err) {
+    logger.error("🔥 Admin promotion error", err);
+    res.status(500).json({ error: "Server error" });
   }
-
-  const user = users.find((u) => u.id === userId);
-
-  if (!user) {
-    return res.status(404).json({ error: "User not found" });
-  }
-
-  user.role = 1; // ✅ type 1 = admin
-
-  res.json({
-    message: "User promoted to admin",
-    user,
-  });
 };

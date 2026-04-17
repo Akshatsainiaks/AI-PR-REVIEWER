@@ -137,6 +137,3 @@ pr:step
 
 ---
 
-## 👨‍💻 Author
-
-Akshat Saini
