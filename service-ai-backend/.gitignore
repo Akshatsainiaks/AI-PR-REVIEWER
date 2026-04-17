@@ -20,3 +20,6 @@ build/
 .vscode/
 .idea/
 /src/generated/prisma
+
+.env
+node_modules/

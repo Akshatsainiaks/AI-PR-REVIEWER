@@ -4,6 +4,7 @@ const http = require("http");
 const app = require("./app");
 const redis = require("./config/redis");
 const { initSocket } = require("./services/socket.service");
+const logger = require("./utils/logger"); 
 
 const PORT = process.env.PORT || 3000;
 
@@ -17,12 +18,13 @@ initSocket(server);
   try {
     await redis.set("ping", "pong");
     const value = await redis.get("ping");
-    console.log("🧠 Redis test:", value);
+    logger.info("🧠 Redis test:", value);
   } catch (err) {
-    console.error("❌ Redis error:", err);
+    logger.error("❌ Redis error:", err);
   }
 })();
 
+
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  logger.info(`🚀 Server running on http://localhost:${PORT}`); // ✅ updated
 });

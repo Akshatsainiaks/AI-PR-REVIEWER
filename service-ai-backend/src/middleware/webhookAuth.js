@@ -8,7 +8,7 @@ module.exports = (req, res, next) => {
       return res.status(401).json({ error: "Missing signature" });
     }
 
-    const secret = process.env.WEBHOOK_SECRET;
+const secret = process.env.GITHUB_WEBHOOK_SECRET;
 
     if (!req.rawBody) {
       return res.status(400).json({ error: "Raw body not available" });

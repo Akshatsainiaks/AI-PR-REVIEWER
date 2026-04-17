@@ -1,9 +1,12 @@
 const prisma = require("../config/prisma");
 const { broadcastStep } = require("../services/socket.service");
+const logger = require("../utils/logger");
 
 exports.agentWebhook = async (req, res) => {
   try {
     const { prId, step, status, details } = req.body;
+
+    logger.info("📡 Webhook received", { prId, step, status });
 
     if (!prId || !step || !status) {
       return res.status(400).json({ error: "Missing fields" });
@@ -14,6 +17,8 @@ exports.agentWebhook = async (req, res) => {
       where: { prId, step },
       data: { status, details },
     });
+
+    logger.info("✅ Step updated", { step, status });
 
 
     const nextStepMap = {
@@ -30,6 +35,8 @@ exports.agentWebhook = async (req, res) => {
           where: { prId, step: nextStep },
           data: { status: "running" },
         });
+
+        logger.info("▶️ Next step started", { nextStep });
       }
     }
 
@@ -39,23 +46,28 @@ exports.agentWebhook = async (req, res) => {
         where: { id: prId },
         data: { status: "completed" },
       });
-    }
 
+      logger.info("🎉 PR completed", { prId });
+    }
 
     if (status === "failed") {
       await prisma.prJob.update({
         where: { id: prId },
         data: { status: "failed" },
       });
+
+      logger.error("❌ PR failed", { prId, step });
     }
 
 
     broadcastStep(prId, step, status, details);
 
+    logger.info("📢 Step broadcasted", { step, status });
+
     res.json({ message: "Webhook processed" });
 
   } catch (err) {
-    console.error("🔥 WEBHOOK ERROR:", err);
+    logger.error("🔥 WEBHOOK ERROR", err);
     res.status(500).json({ error: "Webhook error" });
   }
 };

@@ -1,9 +1,10 @@
 const prisma = require("../config/prisma");
 const axios = require("axios");
+const logger = require("../utils/logger"); 
 
 exports.analyzePR = async (req, res) => {
   try {
-    console.log("🔵 [START] PR Analyze API called");
+    logger.info("🔵 PR Analyze API called");
 
     const { prUrl } = req.body;
     const userId = req.user.id;
@@ -20,7 +21,6 @@ exports.analyzePR = async (req, res) => {
       });
     }
 
-
     const match = prUrl.match(/github\.com\/(.+?)\/(.+?)\/pull\/(\d+)/);
 
     if (!match) {
@@ -33,7 +33,7 @@ exports.analyzePR = async (req, res) => {
 
     const repo = `${owner}/${repoName}`;
 
-    console.log("🧠 Parsed PR:", { repo, prNumber });
+    logger.info("🧠 Parsed PR", { repo, prNumber });
 
 
     const pr = await prisma.prJob.create({
@@ -83,8 +83,10 @@ exports.analyzePR = async (req, res) => {
 
       aiResponse = response.data;
 
+      logger.info("✅ FastAPI success", aiResponse);
+
     } catch (apiErr) {
-      console.log("⚠️ FastAPI error:", apiErr.response?.data);
+      logger.error("⚠️ FastAPI error", apiErr.response?.data);
 
       aiResponse = {
         status: "mock",
@@ -100,7 +102,7 @@ exports.analyzePR = async (req, res) => {
     });
 
   } catch (err) {
-    console.error("🔥 ERROR:", err);
+    logger.error("🔥 PR Analyze ERROR", err);
     res.status(500).json({ error: "Server error" });
   }
 };

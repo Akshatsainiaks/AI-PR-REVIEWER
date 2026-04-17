@@ -3,82 +3,104 @@ const bcrypt = require("bcrypt");
 const { nanoid } = require("nanoid");
 const prisma = require("../config/prisma");
 const redis = require("../config/redis");
-//  REGISTER
+const logger = require("../utils/logger"); 
+
+
 exports.register = async (req, res) => {
   try {
-    const { firstName, lastName, email, password } = req.body;
+    const { fullName, email, password } = req.body;
 
-    // check user exists
+    logger.info("📝 Register attempt", { email });
+
+
+    const passwordRegex =
+      /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+
+    if (!passwordRegex.test(password)) {
+      return res.status(400).json({
+        error:
+          "Password must be 8+ chars, include 1 uppercase, 1 number, 1 special character",
+      });
+    }
+
+
     const existingUser = await prisma.user.findUnique({
       where: { email },
     });
 
     if (existingUser) {
+      logger.warn("⚠️ User already exists", { email });
       return res.status(400).json({ error: "User already exists" });
     }
 
-    // hash password
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // create user
+
     const user = await prisma.user.create({
       data: {
         id: "usr_" + nanoid(10),
-        firstName,
-        lastName,
+        fullName,
         email,
         password: hashedPassword,
         role: 2,
       },
     });
 
-    res.json({
+    logger.info("✅ User registered", { userId: user.id });
+
+    res.status(201).json({
       message: "User registered",
       user: {
         id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
+        fullName: user.fullName,
         role: user.role,
       },
     });
+
   } catch (err) {
-    console.error(err);
+    logger.error("🔥 Register error", err);
     res.status(500).json({ error: "Server error" });
   }
 };
 
-//  LOGIN
-
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
+    logger.info("🔑 Login attempt", { email });
+
 
     const user = await prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
+      logger.warn("❌ User not found", { email });
       return res.status(401).json({ error: "User not found" });
     }
 
+  
     const isMatch = await bcrypt.compare(password, user.password);
 
     if (!isMatch) {
+      logger.warn("❌ Invalid password", { email });
       return res.status(401).json({ error: "Invalid password" });
     }
+
 
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "1d" }
+      { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
     );
 
-    // 🔥 SAFE REDIS STORAGE
+
     const sessionData = {
       id: user.id,
       email: user.email,
-      name: user.firstName,
+      name: user.fullName,
       role: user.role,
       token,
     };
@@ -87,27 +109,26 @@ exports.login = async (req, res) => {
       `session:${user.id}`,
       JSON.stringify(sessionData),
       "EX",
-      86400 // 1 day
+      86400
     );
 
-    // ❗ remove password before response
+    logger.info("✅ Login successful", { userId: user.id });
+
+
     delete user.password;
 
-   res.json({
-  message: "Login successful",
-  token,
-  user: {
-    id: user.id,
-    email: user.email,
-    firstName: user.firstName,
-  },
-});
+    res.json({
+      message: "Login successful",
+      token,
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+      },
+    });
 
   } catch (err) {
-    console.error(err);
+    logger.error("🔥 Login error", err);
     res.status(500).json({ error: "Server error" });
   }
 };
-
-// // 🔹 EXPORT USERS (for admin use)
-// exports._users = users;
