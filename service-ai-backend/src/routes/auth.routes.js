@@ -4,7 +4,9 @@ const router = express.Router();
 const { register,
      login,
      forgotPassword,
-     resetPassword
+     resetPassword,
+     githubCallback,
+     githubLogin
 
  } = require("../controllers/auth.controller");
  const { otpLimiter } = require("../utils/rateLimit");
@@ -141,5 +143,38 @@ router.post("/forgot-password", otpLimiter, forgotPassword);
  *         description: Invalid OTP or validation error
  */
 router.post("/reset-password", resetPassword);
+
+/**
+ * @swagger
+ * /auth/github:
+ *   get:
+ *     summary: Login with GitHub (OAuth)
+ *     tags: [Auth]
+ *     description: Redirects user to GitHub for authentication
+ *     responses:
+ *       302:
+ *         description: Redirect to GitHub login
+ */
+router.get("/github", githubLogin);
+
+/**
+ * @swagger
+ * /auth/github/callback:
+ *   get:
+ *     summary: GitHub OAuth callback
+ *     tags: [Auth]
+ *     description: GitHub redirects here after login
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Authorization code from GitHub
+ *     responses:
+ *       302:
+ *         description: Redirect to frontend with token
+ */
+router.get("/github/callback", githubCallback);
 
 module.exports = router;

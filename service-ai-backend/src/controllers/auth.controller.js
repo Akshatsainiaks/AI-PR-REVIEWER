@@ -329,6 +329,7 @@
 
 
 const jwt = require("jsonwebtoken");
+const axios = require("axios");
 const bcrypt = require("bcrypt");
 const { nanoid } = require("nanoid");
 const prisma = require("../config/prisma");
@@ -553,5 +554,92 @@ exports.resetPassword = async (req, res) => {
 
   } catch (err) {
     res.status(500).json({ error: "Failed" });
+  }
+};
+
+
+//github 
+
+
+exports.githubLogin = (req, res) => {
+  const githubURL = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=user:email`;
+
+  res.redirect(githubURL);
+};
+
+
+exports.githubCallback = async (req, res) => {
+  try {
+    const { code } = req.query;
+
+
+    const tokenRes = await axios.post(
+      "https://github.com/login/oauth/access_token",
+      {
+        client_id: process.env.GITHUB_CLIENT_ID,
+        client_secret: process.env.GITHUB_CLIENT_SECRET,
+        code,
+      },
+      {
+        headers: { Accept: "application/json" },
+      }
+    );
+
+    const accessToken = tokenRes.data.access_token;
+
+
+    const userRes = await axios.get("https://api.github.com/user", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    const emailRes = await axios.get(
+      "https://api.github.com/user/emails",
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    const primaryEmail =
+      emailRes.data.find((e) => e.primary)?.email ||
+      emailRes.data[0]?.email;
+
+    const githubUser = userRes.data;
+
+    let user = await prisma.user.findUnique({
+      where: { email: primaryEmail },
+    });
+
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          id: "usr_" + nanoid(10),
+          fullName: githubUser.name || githubUser.login,
+          email: primaryEmail,
+          password: await bcrypt.hash(nanoid(), 10), // dummy password
+          role: 2,
+        },
+      });
+    }
+
+
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+
+    res.redirect(
+      `${process.env.FRONTEND_URL}/oauth-success?token=${token}`
+    );
+
+  } catch (err) {
+    console.error(err);
+    res.redirect(`${process.env.FRONTEND_URL}/login?error=github`);
   }
 };
