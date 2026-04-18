@@ -3,7 +3,7 @@ const cors = require("cors");
 const swaggerUi = require("swagger-ui-express");
 const swaggerSpec = require("./config/swagger");
 
-const rateLimit = require("./utils/rateLimit");
+const { globalLimiter } = require("./utils/rateLimit");
 const errorHandler = require("./utils/errorHandler");
 
 const authRoutes = require("./routes/auth.routes");
@@ -14,7 +14,7 @@ const webhookRoutes = require("./routes/webhook.routes");
 const app = express();
 
 
-app.use(rateLimit);
+app.use(globalLimiter);
 
 
 app.use(
