@@ -5,7 +5,7 @@ const options = {
     openapi: "3.0.0",
 
     info: {
-      title: "AI PR Reviewer API",
+      title: "Backend Main API",
       version: "1.0.0",
       description: "API documentation for AI PR Reviewer",
     },
