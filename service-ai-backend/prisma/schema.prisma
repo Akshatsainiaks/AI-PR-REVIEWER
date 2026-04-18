@@ -13,6 +13,7 @@ model User {
   password  String
   role      Int
   createdAt DateTime @default(now())
+  lastLoginAt DateTime?
 }
 
 model PrJob {
