@@ -8,14 +8,14 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 
 
-export const Route = createFileRoute("/signup")({
+export const Route = createFileRoute("/register")({
   head: () => ({
     meta: [
-      { title: "Sign Up — CodeLens AI" },
+      { title: "Register — CodeLens AI" },
       { name: "description", content: "Create your CodeLens AI account and start reviewing code with AI" },
     ],
   }),
-  component: Signup,
+  component: Register,
 });
 
 const benefits = [
@@ -24,7 +24,7 @@ const benefits = [
   "Free for public repositories",
 ];
 
-function Signup() {
+function Register() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -34,7 +34,7 @@ function Signup() {
   e.preventDefault();
 
   try {
-    const res = await fetch("http://localhost:3000/api/auth/signup", {
+    const res = await fetch("http://localhost:3000/api/auth/register", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -47,15 +47,15 @@ function Signup() {
     });
 
     const data = await res.json();
-    console.log("SIGNUP RESPONSE:", data);
+    console.log("register RESPONSE:", data);
 
     if (res.ok) {
-      alert("Signup successful ✅");
+      alert("Register successful ✅");
 
       // redirect to login
       window.location.href = "/login";
     } else {
-      alert(data.error || "Signup failed ❌");
+      alert(data.error || "Register failed ❌");
     }
   } catch (err) {
     console.error(err);
@@ -191,4 +191,4 @@ function Signup() {
     </div>
   );
 }
-export default Signup
+export default Register;

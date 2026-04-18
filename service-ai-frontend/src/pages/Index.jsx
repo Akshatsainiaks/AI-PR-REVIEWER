@@ -65,7 +65,7 @@ function Index() {
               </Button>
             </Link>
 
-            <Link to="/signup">
+            <Link to="/register">
               <Button size="sm" className="gap-2">
                 Get Started
                 <ArrowRight className="h-3.5 w-3.5" />

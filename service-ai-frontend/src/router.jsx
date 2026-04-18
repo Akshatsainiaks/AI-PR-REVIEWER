@@ -3,7 +3,7 @@ import { createRouter, createRoute, createRootRoute, useRouter } from "@tanstack
 
 import Index from "./pages/Index"
 import Login from "./pages/Login"
-import Signup from "./pages/Signup"
+import Register from "./pages/Register"
 import Dashboard from "./pages/Dashboard"
 import PRDetails from "./pages/PRDetails";
 function DefaultErrorComponent({ error, reset }) {
@@ -41,10 +41,10 @@ const loginRoute = createRoute({
   component: Login,
 })
 
-const signupRoute = createRoute({
+const registerRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/signup",
-  component: Signup,
+  path: "/register",
+  component: Register,
 })
 
 const dashboardRoute = createRoute({
@@ -62,7 +62,7 @@ const prRoute = createRoute({
 const routeTree = rootRoute.addChildren([
   indexRoute,
   loginRoute,
-  signupRoute,
+  registerRoute,
   dashboardRoute,
   prRoute,
 ])
