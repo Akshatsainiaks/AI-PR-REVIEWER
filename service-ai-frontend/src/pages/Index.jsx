@@ -11,7 +11,6 @@ import {
 } from "lucide-react"
 
 import { Button } from "@/ui/button"   
-import { CodeDiff } from "@/ui/CodeDiff"
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -120,7 +119,6 @@ function Index() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <CodeDiff />
           </motion.div>
         </div>
       </section>
