@@ -334,7 +334,7 @@ const bcrypt = require("bcrypt");
 const { nanoid } = require("nanoid");
 const prisma = require("../config/prisma");
 const redis = require("../config/redis");
-const logger = require("../utils/logger"); 
+const logger = require("../utils/logger");
 const { sendOTP } = require("../services/otp.service");
 
 exports.register = async (req, res) => {
@@ -349,27 +349,21 @@ exports.register = async (req, res) => {
     logger.info("📝 Register attempt", { email });
 
     const finalName =
-      fullName ||
-      name ||
-      `${firstName || ""} ${lastName || ""}`.trim();
+      fullName || name || `${firstName || ""} ${lastName || ""}`.trim();
 
     if (!finalName) {
       return res.status(400).json({ error: "Full name is required" });
     }
 
-    const passwordRegex =
-      /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
     if (!passwordRegex.test(password)) {
       return res.status(400).json({
-        error:
-          "Password must be 8+ chars, include uppercase, number, special char",
+        error: "Password must be 8+ chars, include uppercase, number, special char",
       });
     }
 
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-    });
+    const existingUser = await prisma.user.findUnique({ where: { email } });
 
     if (existingUser) {
       logger.warn("⚠️ User already exists", { email });
@@ -417,10 +411,7 @@ exports.login = async (req, res) => {
 
     logger.info("🔑 Login attempt", { email });
 
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
-
+    const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
       return res.status(401).json({ error: "Invalid email or password" });
@@ -435,11 +426,8 @@ exports.login = async (req, res) => {
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
-      {
-        expiresIn: process.env.JWT_EXPIRES_IN || "24h",
-      }
+      { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
     );
-
 
     await redis.set(
       `session:${user.id}`,
@@ -476,24 +464,29 @@ exports.forgotPassword = async (req, res) => {
   try {
     const email = req.body.email?.toLowerCase().trim();
 
+    if (!email) {
+      return res.status(400).json({ error: "Email is required" });
+    }
+
     const user = await prisma.user.findUnique({ where: { email } });
 
+
     if (!user) {
-      return res.status(400).json({ error: "User not registered" });
+      return res.json({ message: `OTP sent to ${email}` });
     }
 
     await sendOTP(email);
 
-    res.json({
-      message: `OTP sent to ${email}`,
-    });
+    res.json({ message: `OTP sent to ${email}` });
 
   } catch (err) {
-    res.status(500).json({ error: "Failed" });
+    if (err.message?.includes("60 seconds")) {
+      return res.status(429).json({ error: err.message });
+    }
+    logger.error("🔥 Forgot password error", err);
+    res.status(500).json({ error: "Failed to send OTP" });
   }
 };
-
-
 
 exports.resetPassword = async (req, res) => {
   try {
@@ -504,7 +497,6 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ error: "All fields are required" });
     }
 
-   
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user) {
@@ -518,7 +510,16 @@ exports.resetPassword = async (req, res) => {
     }
 
 
+    const attempts = await redis.get(`otp_attempts:${email}`);
+    if (attempts && parseInt(attempts) >= 2) {
+      await redis.del(`reset:${email}`);
+      await redis.del(`otp_attempts:${email}`);
+      return res.status(429).json({ error: "Too many attempts. Please request a new OTP" });
+    }
+
     if (storedOtp !== otp) {
+      await redis.incr(`otp_attempts:${email}`);
+      await redis.expire(`otp_attempts:${email}`, 300);
       return res.status(400).json({ error: "Invalid OTP" });
     }
 
@@ -526,9 +527,7 @@ exports.resetPassword = async (req, res) => {
       return res.status(400).json({ error: "Passwords do not match" });
     }
 
-
-    const passwordRegex =
-      /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
+    const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
 
     if (!passwordRegex.test(newPassword)) {
       return res.status(400).json({
@@ -536,7 +535,6 @@ exports.resetPassword = async (req, res) => {
       });
     }
 
- 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
     await prisma.user.update({
@@ -546,6 +544,10 @@ exports.resetPassword = async (req, res) => {
 
 
     await redis.del(`reset:${email}`);
+    await redis.del(`otp_cooldown:${email}`);
+    await redis.del(`otp_attempts:${email}`);
+
+    logger.info("✅ Password reset successful", { email });
 
     res.json({
       message: "Password updated successfully",
@@ -553,25 +555,24 @@ exports.resetPassword = async (req, res) => {
     });
 
   } catch (err) {
-    res.status(500).json({ error: "Failed" });
+    logger.error("🔥 Reset password error", err);
+    res.status(500).json({ error: "Failed to reset password" });
   }
 };
 
-
-//github 
-
-
 exports.githubLogin = (req, res) => {
   const githubURL = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=user:email`;
-
   res.redirect(githubURL);
 };
-
 
 exports.githubCallback = async (req, res) => {
   try {
     const { code } = req.query;
 
+
+    if (!code) {
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=missing_code`);
+    }
 
     const tokenRes = await axios.post(
       "https://github.com/login/oauth/access_token",
@@ -580,39 +581,38 @@ exports.githubCallback = async (req, res) => {
         client_secret: process.env.GITHUB_CLIENT_SECRET,
         code,
       },
-      {
-        headers: { Accept: "application/json" },
-      }
+      { headers: { Accept: "application/json" } }
     );
 
     const accessToken = tokenRes.data.access_token;
 
 
-    const userRes = await axios.get("https://api.github.com/user", {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    });
+    if (!accessToken) {
+      logger.error("GitHub OAuth — no access token", tokenRes.data);
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=github_token_failed`);
+    }
 
-    const emailRes = await axios.get(
-      "https://api.github.com/user/emails",
-      {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-      }
-    );
+    const [userRes, emailRes] = await Promise.all([
+      axios.get("https://api.github.com/user", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+      axios.get("https://api.github.com/user/emails", {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      }),
+    ]);
 
     const primaryEmail =
       emailRes.data.find((e) => e.primary)?.email ||
       emailRes.data[0]?.email;
 
+   
+    if (!primaryEmail) {
+      return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
+    }
+
     const githubUser = userRes.data;
 
-    let user = await prisma.user.findUnique({
-      where: { email: primaryEmail },
-    });
-
+    let user = await prisma.user.findUnique({ where: { email: primaryEmail } });
 
     if (!user) {
       user = await prisma.user.create({
@@ -620,12 +620,11 @@ exports.githubCallback = async (req, res) => {
           id: "usr_" + nanoid(10),
           fullName: githubUser.name || githubUser.login,
           email: primaryEmail,
-          password: await bcrypt.hash(nanoid(), 10), // dummy password
+          password: await bcrypt.hash(nanoid(), 10),
           role: 2,
         },
       });
     }
-
 
     const token = jwt.sign(
       { id: user.id, role: user.role },
@@ -634,12 +633,25 @@ exports.githubCallback = async (req, res) => {
     );
 
 
-    res.redirect(
-      `${process.env.FRONTEND_URL}/oauth-success?token=${token}`
+    await redis.set(
+      `session:${user.id}`,
+      JSON.stringify({
+        id: user.id,
+        email: user.email,
+        name: user.fullName,
+        role: user.role,
+        token,
+      }),
+      "EX",
+      86400
     );
 
+    logger.info("✅ GitHub login successful", { userId: user.id });
+
+    res.redirect(`${process.env.FRONTEND_URL}/oauth-success?token=${token}`);
+
   } catch (err) {
-    console.error(err);
+    logger.error("🔥 GitHub OAuth error", err);
     res.redirect(`${process.env.FRONTEND_URL}/login?error=github`);
   }
 };

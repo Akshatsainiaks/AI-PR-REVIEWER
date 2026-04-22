@@ -1,0 +1,330 @@
+@import "tailwindcss";
+
+/* ── Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&family=Fira+Code:wght@300;400;500&display=swap');
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   DASHBOARD THEMES
+   Applied as class on #dash-root wrapper
+───────────────────────────────────────────────────────────────── */
+.dash-light {
+  --db:      #f4f6ff;
+  --db2:     #ffffff;
+  --db3:     #eceeff;
+  --dborder: rgba(100,80,200,0.1);
+  --dborder2:rgba(100,80,200,0.25);
+  --dt:      #0d0d1a;
+  --dt2:     #5a5c7a;
+  --dt3:     #9a9cb8;
+  --da:      #7c3aed;
+  --da2:     #a21caf;
+  --dag:     rgba(124,58,237,0.1);
+  --dgreen:  #16a34a;
+  --dred:    #dc2626;
+  --dcyan:   #0891b2;
+}
+
+.dash-dark {
+  --db:      #09090f;
+  --db2:     #111118;
+  --db3:     #1a1a26;
+  --dborder: rgba(120,130,220,0.12);
+  --dborder2:rgba(120,130,220,0.28);
+  --dt:      #eef0ff;
+  --dt2:     #7b85b0;
+  --dt3:     #3d4468;
+  --da:      #c084fc;
+  --da2:     #e879f9;
+  --dag:     rgba(192,132,252,0.1);
+  --dgreen:  #4ade80;
+  --dred:    #f87171;
+  --dcyan:   #22d3ee;
+}
+
+/* ─────────────────────────────────────────────────────────────────
+   DASHBOARD ANIMATIONS
+───────────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes ping {
+  0%        { transform: scale(1);   opacity: 1; }
+  75%, 100% { transform: scale(2.2); opacity: 0; }
+}
+
+.fade-up   { animation: fadeUp 0.5s ease forwards; }
+.spin-anim { animation: spin 0.8s linear infinite; }
+
+/* ─────────────────────────────────────────────────────────────────
+   LANDING PAGE — ANIMATIONS
+   Prefixed l- to avoid conflicts with dashboard
+───────────────────────────────────────────────────────────────── */
+@keyframes l-fu {
+  from { opacity: 0; transform: translateY(28px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes l-float-y {
+  0%,100% { transform: translateY(0); }
+  50%     { transform: translateY(-10px); }
+}
+@keyframes l-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes l-ping {
+  0%        { transform: scale(1);   opacity: 1; }
+  75%, 100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes l-pulse-ring {
+  0%,100% { box-shadow: 0 0 0 0   var(--l-accentGlow); }
+  50%     { box-shadow: 0 0 0 8px transparent; }
+}
+@keyframes l-cursor-blink {
+  0%,100% { opacity: 1; }
+  50%     { opacity: 0; }
+}
+@keyframes l-gradient-shift {
+  0%,100% { background-position: 0%   50%; }
+  50%     { background-position: 100% 50%; }
+}
+@keyframes l-glow-breathe {
+  0%,100% { opacity: 0.4; }
+  50%     { opacity: 0.8; }
+}
+
+/* Stagger helpers */
+.fu1 { animation: l-fu .7s cubic-bezier(.22,1,.36,1) .05s both; }
+.fu2 { animation: l-fu .7s cubic-bezier(.22,1,.36,1) .15s both; }
+.fu3 { animation: l-fu .7s cubic-bezier(.22,1,.36,1) .25s both; }
+.fu4 { animation: l-fu .7s cubic-bezier(.22,1,.36,1) .37s both; }
+.fu5 { animation: l-fu .7s cubic-bezier(.22,1,.36,1) .50s both; }
+
+/* ─────────────────────────────────────────────────────────────────
+   LANDING PAGE — LAYOUT & COMPONENTS
+   All colours reference CSS custom properties set by Landing.jsx
+───────────────────────────────────────────────────────────────── */
+
+/* Navbar */
+.l-nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+  height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 60px;
+  background: var(--l-navBg);
+  backdrop-filter: blur(24px) saturate(180%);
+  border-bottom: 1px solid var(--l-border);
+  transition: all .4s;
+}
+.l-nav.scrolled {
+  border-bottom-color: var(--l-borderH);
+  box-shadow: 0 2px 40px rgba(0,0,0,0.12);
+}
+
+/* Nav links */
+.l-nav-a {
+  font-size: 14px; font-weight: 500;
+  color: var(--l-text2);
+  background: none; border: none; cursor: pointer;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  transition: color .2s; padding: 0;
+}
+.l-nav-a:hover { color: var(--l-text); }
+
+/* Buttons */
+.l-btn-ghost {
+  background: transparent;
+  border: 1px solid var(--l-borderH);
+  color: var(--l-text2);
+  border-radius: 10px; padding: 8px 20px;
+  font-size: 13.5px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer; transition: all .2s; font-weight: 500;
+}
+.l-btn-ghost:hover {
+  border-color: var(--l-accent);
+  color: var(--l-accent);
+  background: var(--l-accentDim);
+}
+.l-btn-primary {
+  background: var(--l-accent);
+  border: none; color: #fff; border-radius: 10px;
+  padding: 9px 22px; font-size: 13.5px; font-weight: 700;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer; transition: all .2s;
+}
+.l-btn-primary:hover {
+  filter: brightness(1.12);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px var(--l-accentGlow);
+}
+.l-btn-xl       { padding: 14px 36px; font-size: 16px; border-radius: 12px; }
+.l-btn-ghost-xl {
+  padding: 13px 36px; font-size: 16px; border-radius: 12px;
+  border: 1.5px solid var(--l-borderH);
+  color: var(--l-text2); background: transparent;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  cursor: pointer; transition: all .2s; font-weight: 500;
+}
+.l-btn-ghost-xl:hover {
+  border-color: var(--l-accent);
+  color: var(--l-accent);
+  background: var(--l-accentDim);
+}
+
+/* Theme toggle button */
+.l-theme-btn {
+  display: flex; align-items: center; gap: 7px;
+  background: var(--l-bg3);
+  border: 1px solid var(--l-borderH);
+  border-radius: 10px; padding: 7px 14px;
+  cursor: pointer; color: var(--l-text2);
+  font-size: 13px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-weight: 500; transition: all .2s;
+}
+.l-theme-btn:hover {
+  border-color: var(--l-accent);
+  color: var(--l-accent);
+}
+
+/* Cards */
+.l-card {
+  background: var(--l-bg2);
+  border: 1px solid var(--l-border);
+  border-radius: 16px;
+  transition: border-color .25s, transform .3s, box-shadow .3s;
+}
+.l-card:hover {
+  border-color: var(--l-borderH);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+}
+
+/* Popular pricing card */
+.l-plan-pop {
+  border-color: var(--l-accent) !important;
+  background: linear-gradient(160deg, var(--l-accentDim) 0%, var(--l-bg2) 55%) !important;
+}
+
+/* Terminal */
+.l-terminal {
+  background: var(--l-terminal-bg);
+  border: 1px solid var(--l-borderH);
+  border-radius: 16px; overflow: hidden;
+  box-shadow: 0 40px 100px rgba(0,0,0,0.3);
+}
+.l-terminal-bar {
+  padding: 10px 16px;
+  display: flex; align-items: center; gap: 7px;
+  border-bottom: 1px solid var(--l-border);
+  background: var(--l-bg3);
+}
+
+/* Step rows inside terminal */
+.l-step-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--l-border);
+}
+.l-step-row:last-child { border-bottom: none; }
+
+/* Section label */
+.l-s-label {
+  font-family: 'Fira Code', monospace;
+  font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--l-accent); margin-bottom: 14px;
+}
+
+/* Section title */
+.l-s-title {
+  font-weight: 800; letter-spacing: -1.8px; line-height: 1.04;
+  color: var(--l-text);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+/* Badge */
+.l-badge {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: var(--l-bg3);
+  border: 1px solid var(--l-border);
+  border-radius: 999px; padding: 6px 18px;
+  font-family: 'Fira Code', monospace;
+  font-size: 11.5px; color: var(--l-text2);
+}
+
+/* Gradient text */
+.l-g-text {
+  background: linear-gradient(135deg, var(--l-accent), var(--l-accent2), var(--l-cyan));
+  background-size: 200% 200%;
+  animation: l-gradient-shift 4s ease infinite;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Ticker / marquee */
+.l-mq-wrap {
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, black 12%, black 88%, transparent);
+}
+.l-mq-inner {
+  display: flex; width: max-content;
+  animation: l-marquee 28s linear infinite;
+}
+.l-mq-item {
+  font-family: 'Fira Code', monospace;
+  font-size: 12px; color: var(--l-text3);
+  padding: 0 28px; white-space: nowrap;
+  display: flex; align-items: center; gap: 10px;
+}
+.l-mq-sep { color: var(--l-accent); opacity: 0.5; }
+
+/* Architecture boxes */
+.l-arch-box {
+  background: var(--l-bg3);
+  border: 1px solid var(--l-border);
+  border-radius: 10px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px;
+  transition: border-color .2s;
+}
+.l-arch-box:hover { border-color: var(--l-borderH); }
+
+/* Footer links */
+.l-fl {
+  color: var(--l-text3); font-size: 13.5px;
+  cursor: pointer; transition: color .2s;
+}
+.l-fl:hover { color: var(--l-text2); }
+
+/* ── Responsive grid helpers ── */
+.l-g2 { /* used with inline gridTemplateColumns */ }
+.l-g3 { /* used with inline gridTemplateColumns */ }
+.l-fg { /* used with inline gridTemplateColumns */ }
+
+@media (max-width: 960px) {
+  .l-nav   { padding: 0 20px; }
+  .hide-m  { display: none !important; }
+  .l-g2   { grid-template-columns: 1fr !important; }
+  .l-g3   { grid-template-columns: 1fr 1fr !important; }
+  .l-fg   { grid-template-columns: 1fr 1fr !important; }
+}
+@media (max-width: 600px) {
+  .l-g3 { grid-template-columns: 1fr !important; }
+  .l-fg { grid-template-columns: 1fr !important; }
+}
