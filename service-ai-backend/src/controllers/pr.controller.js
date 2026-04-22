@@ -1,12 +1,12 @@
 const prisma = require("../config/prisma");
 const axios = require("axios");
-const logger = require("../utils/logger"); 
+const logger = require("../utils/logger");
 
 exports.analyzePR = async (req, res) => {
   try {
     logger.info("🔵 PR Analyze API called");
 
-    const { prUrl } = req.body;
+    const { prUrl, baseBranch = "main", headBranch = "main" } = req.body;
     const userId = req.user.id;
 
     if (!prUrl) {
@@ -35,7 +35,6 @@ exports.analyzePR = async (req, res) => {
 
     logger.info("🧠 Parsed PR", { repo, prNumber });
 
-
     const pr = await prisma.prJob.create({
       data: {
         prUrl,
@@ -43,7 +42,6 @@ exports.analyzePR = async (req, res) => {
         userId,
       },
     });
-
 
     const steps = ["fetch_pr", "clone_repo", "analyze_code", "generate_review"];
 
@@ -55,18 +53,16 @@ exports.analyzePR = async (req, res) => {
       })),
     });
 
-
     await prisma.stepLog.updateMany({
       where: { prId: pr.id, step: "fetch_pr" },
       data: { status: "running" },
     });
 
-
     const payload = {
       pr_id: prNumber,
       repo,
-      branch: "main",
-      base: "main",
+      branch: headBranch,
+      base: baseBranch,
       meta: {
         prId: pr.id,
         pr_url: prUrl,

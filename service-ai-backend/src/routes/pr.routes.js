@@ -4,6 +4,7 @@ const router = express.Router();
 const { analyzePR } = require("../controllers/pr.controller");
 const auth = require("../middleware/auth");
 const prisma = require("../config/prisma");
+const logger = require("../utils/logger");
 
 /**
  * @swagger
@@ -16,7 +17,7 @@ const prisma = require("../config/prisma");
  * @swagger
  * /pr/analyze:
  *   post:
- *     summary: Trigger AI analysis for PR
+ *     summary: Trigger AI analysis for a PR
  *     tags: [PR]
  *     security:
  *       - bearerAuth: []
@@ -32,6 +33,12 @@ const prisma = require("../config/prisma");
  *               prUrl:
  *                 type: string
  *                 example: https://github.com/Akshatsainiaks/AI-PR-REVIEWER/pull/7
+ *               baseBranch:
+ *                 type: string
+ *                 example: main
+ *               headBranch:
+ *                 type: string
+ *                 example: feature/my-branch
  *     responses:
  *       200:
  *         description: Analysis started
@@ -40,9 +47,129 @@ router.post("/analyze", auth, analyzePR);
 
 /**
  * @swagger
+ * /pr:
+ *   get:
+ *     summary: Get all PRs for logged-in user
+ *     tags: [PR]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Items per page
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [analyzing, completed, failed]
+ *         description: Filter by status
+ *     responses:
+ *       200:
+ *         description: List of PRs with pagination
+ */
+router.get("/", auth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const status = req.query.status || null;
+    const skip = (page - 1) * limit;
+
+    const where = { userId };
+    if (status) where.status = status;
+
+    const [prs, total] = await Promise.all([
+      prisma.prJob.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip,
+        take: limit,
+        include: {
+          stepLogs: {
+            orderBy: { createdAt: "asc" },
+          },
+        },
+      }),
+      prisma.prJob.count({ where }),
+    ]);
+
+    res.json({
+      data: prs,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    });
+
+  } catch (err) {
+    logger.error("🔥 Get PRs error", err);
+    res.status(500).json({ error: "Failed to fetch PRs" });
+  }
+});
+
+/**
+ * @swagger
+ * /pr/{prId}:
+ *   get:
+ *     summary: Get single PR with all step details
+ *     tags: [PR]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: prId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: PR Job ID
+ *     responses:
+ *       200:
+ *         description: PR with steps
+ *       404:
+ *         description: PR not found
+ */
+router.get("/:prId", auth, async (req, res) => {
+  try {
+    const { prId } = req.params;
+    const userId = req.user.id;
+
+    const pr = await prisma.prJob.findFirst({
+      where: { id: prId, userId },
+      include: {
+        stepLogs: {
+          orderBy: { createdAt: "asc" },
+        },
+      },
+    });
+
+    if (!pr) {
+      return res.status(404).json({ error: "PR not found" });
+    }
+
+    res.json({ data: pr });
+
+  } catch (err) {
+    logger.error("🔥 Get PR error", err);
+    res.status(500).json({ error: "Failed to fetch PR" });
+  }
+});
+
+/**
+ * @swagger
  * /pr/{prId}/status:
  *   get:
- *     summary: Get PR step status
+ *     summary: Get PR step status only
  *     tags: [PR]
  *     security:
  *       - bearerAuth: []
@@ -66,13 +193,10 @@ router.get("/:prId/status", auth, async (req, res) => {
       orderBy: { createdAt: "asc" },
     });
 
-    res.json({
-      prId,
-      steps,
-    });
+    res.json({ prId, steps });
 
   } catch (err) {
-    console.error("🔥 Status Error:", err);
+    logger.error("🔥 Status error", err);
     res.status(500).json({ error: "Failed to fetch status" });
   }
 });

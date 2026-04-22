@@ -7,28 +7,30 @@ datasource db {
 }
 
 model User {
-  id        String @id
-  fullName  String
-  email     String @unique
-  password  String
-  role      Int
-  createdAt DateTime @default(now())
+  id          String    @id
+  fullName    String
+  email       String    @unique
+  password    String
+  role        Int
+  createdAt   DateTime  @default(now())
   lastLoginAt DateTime?
 }
 
 model PrJob {
-  id      String   @id @default(cuid())
-  prUrl   String
-  status  String
-  userId  String
-  createdAt DateTime @default(now())
+  id        String     @id @default(cuid())
+  prUrl     String
+  status    String
+  userId    String
+  createdAt DateTime   @default(now())
+  stepLogs  StepLog[]
 }
 
 model StepLog {
-  id        String @id @default(cuid())
+  id        String   @id @default(cuid())
   prId      String
   step      String
   status    String
   details   String?
   createdAt DateTime @default(now())
+  pr        PrJob    @relation(fields: [prId], references: [id])
 }

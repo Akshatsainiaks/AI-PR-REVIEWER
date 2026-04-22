@@ -10,7 +10,7 @@ const authRoutes = require("./routes/auth.routes");
 const adminRoutes = require("./routes/admin.routes");
 const prRoutes = require("./routes/pr.routes");
 const webhookRoutes = require("./routes/webhook.routes");
-
+const githubWebhookRoutes = require("./routes/githubWebhook.routes");
 const app = express();
 
 
@@ -28,7 +28,7 @@ app.use(
 
 app.use(
   cors({
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
+    origin: process.env.FRONTEND_URL || "http://localhost:3001",
     credentials: true,
   })
 );
@@ -38,7 +38,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/pr", prRoutes);
 app.use("/api/webhooks", webhookRoutes);
-
+app.use("/api/webhooks", githubWebhookRoutes);
 
 app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 

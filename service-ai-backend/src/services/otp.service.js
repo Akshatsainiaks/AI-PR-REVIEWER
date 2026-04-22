@@ -9,7 +9,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// 🔹 Email Template
 const getOtpTemplate = (otp) => `
 <div style="font-family: 'Segoe UI', sans-serif; background:#f5f7fb; padding:30px;">
   <div style="max-width:500px; margin:auto; background:white; border-radius:12px; padding:30px; text-align:center;">
@@ -28,7 +27,6 @@ const getOtpTemplate = (otp) => `
 `;
 
 exports.sendOTP = async (email) => {
-  // 🔒 Cooldown check (60 sec)
   const cooldown = await redis.get(`otp_cooldown:${email}`);
   if (cooldown) {
     throw new Error("Please wait 60 seconds before requesting another OTP");
@@ -36,15 +34,11 @@ exports.sendOTP = async (email) => {
 
   const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
-  console.log("Generated OTP:", otp);
 
-  // 🔹 Store OTP
+
   await redis.set(`reset:${email}`, otp, "EX", 300);
-
-  // 🔹 Cooldown key
   await redis.set(`otp_cooldown:${email}`, "1", "EX", 60);
 
-  // 🔹 Send Email
   await transporter.sendMail({
     to: email,
     subject: "🔐 Revuzen Password Reset OTP",
@@ -62,7 +56,6 @@ exports.verifyOTP = async (email, otp) => {
   return true;
 };
 
-// (Optional — keep if needed later)
 exports.storeTempUser = async (email, data) => {
   await redis.set(`temp:${email}`, JSON.stringify(data), "EX", 300);
 };
