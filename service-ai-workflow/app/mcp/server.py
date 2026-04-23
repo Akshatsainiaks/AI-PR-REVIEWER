@@ -213,4 +213,5 @@ def merge_pr(repo: str, pr_number: int, github_token: str) -> dict:
     try:
         return res.json()
     except:
-        return {"status": 1, "text": res.text}
+        logger.error(res.text)
+        return {"status": res.status_code, "text": res.text}
