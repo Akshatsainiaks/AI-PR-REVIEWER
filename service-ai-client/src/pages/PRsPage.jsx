@@ -20,7 +20,8 @@ export default function PRsPage() {
 
   return (
     <DashLayout>
-      <div style={{ maxWidth: "900px" }}>
+      {/* <div style={{ maxWidth: "900px" }}> */}
+      <div style={{ width: "100%" }}>
         <div style={{ marginBottom: "24px" }}>
           <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px", color: V("dt"), marginBottom: "4px" }}>
             All Pull Requests

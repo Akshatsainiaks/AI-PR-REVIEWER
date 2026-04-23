@@ -25,7 +25,8 @@ export default function AnalyticsPage() {
 
   return (
     <DashLayout>
-      <div style={{ maxWidth: "900px" }}>
+      {/* <div style={{ maxWidth: "900px" }}> */}
+      <div style={{ width: "100%" }}>
         <div style={{ marginBottom: "28px" }}>
           <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px", color: V("dt"), marginBottom: "4px" }}>Analytics</h1>
           <p style={{ color: V("dt2"), fontSize: "13px" }}>Overview of your PR review activity</p>

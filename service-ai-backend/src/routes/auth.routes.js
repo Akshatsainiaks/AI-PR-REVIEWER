@@ -1,16 +1,17 @@
 const express = require("express");
 const router = express.Router();
 const auth = require("../middleware/auth");
+const prisma = require("../config/prisma");
 
-const { register,
-     login,
-     forgotPassword,
-     resetPassword,
-     githubCallback,
-     githubLogin
-
- } = require("../controllers/auth.controller");
- const { otpLimiter } = require("../utils/rateLimit");
+const {
+  register,
+  login,
+  forgotPassword,
+  resetPassword,
+  githubCallback,
+  githubLogin,
+} = require("../controllers/auth.controller");
+const { otpLimiter } = require("../utils/rateLimit");
 
 /**
  * @swagger
@@ -65,12 +66,60 @@ router.post("/register", register);
  *                 example: test@gmail.com
  *               password:
  *                 type: string
- *                 example: 123456
+ *                 example: Strong@123
  *     responses:
  *       200:
- *         description: Login successful
+ *         description: Login successful — returns token + user (with githubUsername, avatarUrl)
  */
 router.post("/login", login);
+
+/**
+ * @swagger
+ * /auth/me:
+ *   get:
+ *     summary: Get current logged-in user profile
+ *     description: Returns full user object including githubUsername and avatarUrl. Called by OAuthSuccess after GitHub login to get the complete profile.
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: User profile
+ *         content:
+ *           application/json:
+ *             example:
+ *               user:
+ *                 id: usr_abc123
+ *                 email: akshat@gmail.com
+ *                 fullName: Akshat Saini
+ *                 role: 2
+ *                 githubUsername: Akshatsainiaks
+ *                 avatarUrl: https://avatars.githubusercontent.com/u/12345
+ *       401:
+ *         description: Not authenticated
+ */
+router.get("/me", auth, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        githubUsername: true,  // null for email-only users
+        avatarUrl: true,       // null for email-only users
+      },
+    });
+
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    res.json({ user });
+  } catch (err) {
+    console.error("GET /auth/me error:", err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 /**
  * @swagger
@@ -164,7 +213,7 @@ router.get("/github", githubLogin);
  *   get:
  *     summary: GitHub OAuth callback
  *     tags: [Auth]
- *     description: GitHub redirects here after login
+ *     description: GitHub redirects here after login. Upserts user with githubUsername + avatarUrl then redirects to /oauth-success?token=...
  *     parameters:
  *       - in: query
  *         name: code
@@ -177,20 +226,5 @@ router.get("/github", githubLogin);
  *         description: Redirect to frontend with token
  */
 router.get("/github/callback", githubCallback);
-
-
-
-router.get("/me", auth, async (req, res) => {
-  try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.id },
-      select: { id: true, email: true, fullName: true, role: true },
-    });
-    if (!user) return res.status(404).json({ error: "User not found" });
-    res.json({ user });
-  } catch (err) {
-    res.status(500).json({ error: "Server error" });
-  }
-});
 
 module.exports = router;
