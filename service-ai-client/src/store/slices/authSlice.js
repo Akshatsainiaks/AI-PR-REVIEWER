@@ -1,7 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../services/api";
 
-// Rehydrate user from localStorage on page refresh
 const savedToken = localStorage.getItem("token") || null;
 const savedUser = (() => {
   try {
@@ -56,9 +55,7 @@ export const resetPassword = createAsyncThunk(
       const res = await api.post("/auth/reset-password", data);
       return res.data;
     } catch (err) {
-      return rejectWithValue(
-        err.response?.data?.error || "Failed to reset password"
-      );
+      return rejectWithValue(err.response?.data?.error || "Failed to reset password");
     }
   }
 );

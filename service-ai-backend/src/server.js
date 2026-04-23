@@ -1,14 +1,33 @@
 require("dotenv").config();
 
+const express = require("express");
 const http = require("http");
-const app = require("./app");
+const app = express();
 const redis = require("./config/redis");
 const prisma = require("./config/prisma");
 const axios = require("axios");
 const { initSocket } = require("./services/socket.service");
 const logger = require("./utils/logger");
+const swaggerJsDoc = require("swagger-jsdoc");
 
 const PORT = process.env.PORT || 3000;
+
+const swaggerOptions = {
+  swaggerDefinition: {
+    info: {
+      title: "AI PR Reviewer",
+      description: "API documentation for AI PR Reviewer",
+      contact: {
+        name: "Your Name",
+      },
+      servers: ["http://localhost:3000"],
+    },
+  },
+  apis: ["./routes/*.js"],
+};
+
+const swaggerSpec = swaggerJsDoc(swaggerOptions);
+
 const server = http.createServer(app);
 
 initSocket(server);
@@ -97,6 +116,30 @@ const startupChecks = async () => {
   logger.info("");
 };
 
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+app.use(express.static("public"));
+
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || "http://localhost:3001",
+  credentials: true,
+};
+app.use(cors(corsOptions));
+
+app.use("/api/auth", require("./routes/auth.routes"));
+app.use("/api/admin", require("./routes/admin.routes"));
+app.use("/api/pr", require("./routes/pr.routes"));
+app.use("/api/webhooks", require("./routes/githubWebhook.routes"));
+app.use("/api/docs", swaggerSpec);
+
 server.listen(PORT, async () => {
   await startupChecks();
 });
+
+// Prisma models
+module.exports = {
+  User: prisma.model.User,
+  PrJob: prisma.model.PrJob,
+  StepLog: prisma.model.StepLog,
+};

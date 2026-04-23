@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../services/api";
+import { nanoid } from "nanoid";
 
 export const analyzePR = createAsyncThunk("pr/analyze", async (data, { rejectWithValue }) => {
   try {

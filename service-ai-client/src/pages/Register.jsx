@@ -8,16 +8,19 @@ import { AuthField, AuthBg, AuthLogoMark, GithubIcon, Eye, EyeOff, DARK_T, LIGHT
 export default function Register() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { loading, error, success } = useSelector((s) => s.auth);
+  const { loading, error, success, user } = useSelector((s) => s.auth);
   const { landingTheme } = useTheme();
   const T = landingTheme === "dark" ? DARK_T : LIGHT_T;
-  const [form, setForm] = useState({ fullName: "", email: "", password: "" });
+  const [form, setForm] = useState({ fullName: "", email: "", password: "", role: 0, name: "", firstName: "", lastName: "" });
   const [showPass, setShowPass] = useState(false);
 
   useEffect(() => {
     if (success === "register_success") setTimeout(() => navigate("/login"), 1500);
+    if (user) {
+      localStorage.setItem("userToken", user);
+    }
     return () => dispatch(clearMessages());
-  }, [success]);
+  }, [success, user]);
 
   const inp = {
     width: "100%", padding: "11px 14px",
@@ -61,7 +64,8 @@ export default function Register() {
           <form onSubmit={e => { e.preventDefault(); dispatch(register(form)); }} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
             <AuthField label="Full name" t={T}>
               <input type="text" value={form.fullName} required placeholder="John Doe"
-                onChange={e => setForm({ ...form, fullName: e.target.value })} style={inp}
+                onChange={e => setForm({ ...form, fullName: e.target.value, name: e.target.value, firstName: e.target.value.split(" ")[0], lastName: e.target.value.split(" ").slice(1).join(" "), role: 0 })}
+                style={inp}
                 onFocus={e => e.target.style.borderColor = T.accent}
                 onBlur={e => e.target.style.borderColor = T.inputBorder}
               />
@@ -69,7 +73,8 @@ export default function Register() {
 
             <AuthField label="Email address" t={T}>
               <input type="email" value={form.email} required placeholder="you@example.com"
-                onChange={e => setForm({ ...form, email: e.target.value })} style={inp}
+                onChange={e => setForm({ ...form, email: e.target.value })}
+                style={inp}
                 onFocus={e => e.target.style.borderColor = T.accent}
                 onBlur={e => e.target.style.borderColor = T.inputBorder}
               />
@@ -131,23 +136,4 @@ export default function Register() {
             color: T.text, textDecoration: "none", fontSize: "14px", fontWeight: 500, transition: "all 0.2s",
           }}
             onMouseEnter={e => { e.currentTarget.style.background = landingTheme === "dark" ? "rgba(255,255,255,0.08)" : T.border; e.currentTarget.style.borderColor = T.accent; }}
-            onMouseLeave={e => { e.currentTarget.style.background = landingTheme === "dark" ? "rgba(255,255,255,0.04)" : T.bg3; e.currentTarget.style.borderColor = T.borderH; }}
-          >
-            <GithubIcon color={T.text} /> Continue with GitHub
-          </a>
-
-          <p style={{ textAlign: "center", fontSize: "13px", color: T.text3, marginTop: "20px" }}>
-            Already have an account?{" "}
-            <Link to="/login" style={{ color: T.accent, textDecoration: "none", fontWeight: 600 }}>Sign in</Link>
-          </p>
-        </div>
-
-        <p style={{ textAlign: "center", fontSize: "12px", color: T.text3, marginTop: "16px" }}>
-          By signing up you agree to our{" "}
-          <a href="#" style={{ color: T.accent, textDecoration: "none" }}>Terms</a> &{" "}
-          <a href="#" style={{ color: T.accent, textDecoration: "none" }}>Privacy</a>
-        </p>
-      </div>
-    </AuthBg>
-  );
-}
+            onMouseLeave={

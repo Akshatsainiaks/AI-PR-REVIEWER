@@ -164,39 +164,3 @@ function Section({ title, desc, children }) {
   return (
     <div style={{ background: "var(--db2)", border: "1px solid var(--dborder)", borderRadius: "16px", padding: "24px" }}>
       <h2 style={{ fontSize: "15px", fontWeight: 700, color: "var(--dt)", marginBottom: "4px" }}>{title}</h2>
-      <p style={{ fontSize: "12px", color: "var(--dt2)", marginBottom: "20px", lineHeight: 1.6 }}>{desc}</p>
-      {children}
-    </div>
-  );
-}
-
-function InfoRow({ label, value, mono }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--dborder)" }}>
-      <span style={{ fontSize: "13px", color: "var(--dt2)" }}>{label}</span>
-      <span style={{ fontSize: "12px", color: "var(--dt)", fontWeight: 500, fontFamily: mono ? "'Fira Code',monospace" : "inherit", maxWidth: "60%", textAlign: "right", wordBreak: "break-all" }}>
-        {value}
-      </span>
-    </div>
-  );
-}
-
-function NotifRow({ label, desc, defaultOn }) {
-  const [on, setOn] = useState(defaultOn ?? true);
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: "1px solid var(--dborder)" }}>
-      <div style={{ flex: 1, paddingRight: "20px" }}>
-        <p style={{ fontSize: "13px", color: "var(--dt)", fontWeight: 500, marginBottom: "2px" }}>{label}</p>
-        <p style={{ fontSize: "12px", color: "var(--dt2)" }}>{desc}</p>
-      </div>
-      <button onClick={() => setOn(v => !v)} style={{
-        width: 44, height: 24, borderRadius: "12px",
-        background: on ? "var(--da)" : "var(--db3)",
-        border: `1px solid ${on ? "var(--da)" : "var(--dborder)"}`,
-        cursor: "pointer", position: "relative", transition: "all 0.25s", flexShrink: 0,
-      }}>
-        <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: "2px", left: on ? "22px" : "2px", transition: "left 0.25s", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }} />
-      </button>
-    </div>
-  );
-}

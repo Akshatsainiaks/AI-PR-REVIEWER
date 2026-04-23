@@ -2,9 +2,16 @@ let io;
 
 const initSocket = (server) => {
   const { Server } = require("socket.io");
+  const cors = require('cors');
 
   io = new Server(server, {
-    cors: { origin: process.env.FRONTEND_URL || "http://localhost:5173", credentials: true },
+    cors: {
+      origin: process.env.FRONTEND_URL || "http://localhost:3001",
+      credentials: true,
+      allowedHeaders: cors.allowedHeaders,
+      exposedHeaders: cors.exposedHeaders,
+      methods: cors.methods,
+    },
   });
 
   io.on("connection", (socket) => {
@@ -15,6 +22,19 @@ const initSocket = (server) => {
       console.log(`📌 Joined room pr:${prId}`);
     });
   });
+};
+
+const broadcastStepLog = (prId, step, status, details) => {
+  if (!io) return;
+
+  io.to(`pr:${prId}`).emit("pr:stepLog", {
+    step,
+    status,
+    details,
+    timestamp: Date.now(),
+  });
+
+  console.log("📢 Broadcast:", step, status);
 };
 
 const broadcastStep = (prId, step, status, details) => {
@@ -30,4 +50,4 @@ const broadcastStep = (prId, step, status, details) => {
   console.log("📢 Broadcast:", step, status);
 };
 
-module.exports = { initSocket, broadcastStep };
+module.exports = { initSocket, broadcastStep, broadcastStepLog };

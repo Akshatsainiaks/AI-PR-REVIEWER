@@ -5,7 +5,8 @@ const { nanoid } = require("nanoid");
 const prisma = require("../config/prisma");
 const redis = require("../config/redis");
 const logger = require("../utils/logger");
-const { sendOTP, verifyOTP } = require("../services/otp.service");
+const { sendOTP, verifyOTP, resetPassword } = require("../services/otp.service");
+const githubWebhookRoutes = require("./routes/githubWebhook.routes");
 
 // ── Register ──────────────────────────────────────────────────────────────────
 exports.register = async (req, res) => {
@@ -118,7 +119,6 @@ exports.login = async (req, res) => {
 
     logger.info("✅ Login successful", { userId: user.id });
 
-    // Return ALL user fields including github ones (null for non-github users)
     res.json({
       message: "Login successful",
       token,
@@ -127,8 +127,6 @@ exports.login = async (req, res) => {
         email: user.email,
         fullName: user.fullName,
         role: user.role,
-        githubUsername: user.githubUsername || null,
-        avatarUrl: user.avatarUrl || null,
       },
     });
   } catch (err) {
@@ -269,76 +267,4 @@ exports.githubCallback = async (req, res) => {
     // Fetch GitHub profile + emails in parallel
     const [userRes, emailRes] = await Promise.all([
       axios.get("https://api.github.com/user", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }),
-      axios.get("https://api.github.com/user/emails", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      }),
-    ]);
-
-    const githubUser = userRes.data;
-    const primaryEmail =
-      emailRes.data.find((e) => e.primary && e.verified)?.email ||
-      emailRes.data.find((e) => e.primary)?.email ||
-      emailRes.data[0]?.email;
-
-    if (!primaryEmail) {
-      return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
-    }
-
-    // Upsert user — always sync githubUsername + avatarUrl
-    let user = await prisma.user.findUnique({ where: { email: primaryEmail } });
-
-    if (!user) {
-      // First-time GitHub login — create account
-      user = await prisma.user.create({
-        data: {
-          id: "usr_" + nanoid(10),
-          fullName: githubUser.name || githubUser.login,
-          email: primaryEmail,
-          password: await bcrypt.hash(nanoid(20), 10), // dummy password
-          role: 2,
-          githubUsername: githubUser.login,       // ← store GitHub username
-          avatarUrl: githubUser.avatar_url || null, // ← store avatar URL
-        },
-      });
-    } else {
-      // Returning user — update GitHub fields to stay in sync
-      user = await prisma.user.update({
-        where: { email: primaryEmail },
-        data: {
-          githubUsername: githubUser.login,
-          avatarUrl: githubUser.avatar_url || null,
-          lastLoginAt: new Date(),
-        },
-      });
-    }
-
-    const token = jwt.sign(
-      { id: user.id, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
-    );
-
-    await redis.set(
-      `session:${user.id}`,
-      JSON.stringify({
-        id: user.id,
-        email: user.email,
-        name: user.fullName,
-        role: user.role,
-        token,
-      }),
-      "EX",
-      86400
-    );
-
-    logger.info("✅ GitHub login", { userId: user.id, github: githubUser.login });
-
-    // Redirect to frontend — OAuthSuccess.jsx will call /auth/me to get full user
-    res.redirect(`${process.env.FRONTEND_URL}/oauth-success?token=${token}`);
-  } catch (err) {
-    logger.error("🔥 GitHub OAuth error", err);
-    res.redirect(`${process.env.FRONTEND_URL}/login?error=github`);
-  }
-};
+        headers: { Authorization: `Bearer ${

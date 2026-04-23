@@ -23,7 +23,7 @@ const App = () => {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={token ? <Navigate to="/dashboard" /> : <Login />} />
-        <Route path="/register" element={token ? <Navigate to="/dashboard" /> : <Register />} />
+        <Route path="/register" element={token !== null ? <Navigate to="/dashboard" /> : <Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/oauth-success" element={<OAuthSuccess />} />

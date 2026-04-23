@@ -30,7 +30,7 @@ export default function Dashboard() {
   const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
-    dispatch(fetchPRs({ limit: 5 }));
+    dispatch(fetchPRs());
   }, []);
 
   const handleAnalyze = async (e) => {
@@ -57,7 +57,6 @@ export default function Dashboard() {
 
   return (
     <DashLayout>
-      {/* <div style={{ maxWidth: "900px" }}> */}
       <div style={{ width: "100%" }}>
 
         {/* Welcome */}
@@ -155,26 +154,4 @@ const PRCard = ({ pr, onClick }) => {
     >
       <div style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: statusColor[pr.status] || V("dborder"), boxShadow: pr.status === "analyzing" ? "0 0 8px var(--da)" : "none" }} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <p style={{ fontFamily: "'Fira Code',monospace", fontSize: "12px", color: V("dt"), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", marginBottom: "2px" }}>{pr.prUrl}</p>
-        <p style={{ fontSize: "11px", color: V("dt2") }}>{new Date(pr.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} · {completed}/{total} steps</p>
-      </div>
-      <span style={{ fontSize: "10px", fontFamily: "'Fira Code',monospace", padding: "2px 8px", borderRadius: "5px", flexShrink: 0, background: `${statusColor[pr.status] || V("dborder")}22`, color: statusColor[pr.status] || V("dt2"), border: `1px solid ${statusColor[pr.status] || V("dborder")}44` }}>
-        {pr.status}
-      </span>
-    </div>
-  );
-};
-
-const Skeleton = () => (
-  <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-    {[1, 2, 3].map(i => <div key={i} style={{ height: "58px", borderRadius: "12px", background: "linear-gradient(90deg,var(--db2) 25%,var(--db3) 50%,var(--db2) 75%)", backgroundSize: "200% 100%", animation: "shimmer 1.5s infinite" }} />)}
-  </div>
-);
-
-const Empty = () => (
-  <div style={{ textAlign: "center", padding: "48px 24px", border: "2px dashed var(--dborder)", borderRadius: "12px" }}>
-    <p style={{ fontSize: "24px", marginBottom: "8px" }}>⎇</p>
-    <p style={{ fontSize: "15px", fontWeight: 700, marginBottom: "6px", color: "var(--dt)" }}>No PRs yet</p>
-    <p style={{ color: "var(--dt2)", fontSize: "13px" }}>Paste a GitHub PR URL above to get started</p>
-  </div>
-);
+        <p style={{ fontFamily: "'Fira Code',monospace", fontSize: "

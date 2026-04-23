@@ -111,14 +111,4 @@ export default function Sidebar({ open, onToggle }) {
           style={{
             width: 30, height: 30, borderRadius: "8px", background: V("db3"),
             border: `1px solid ${V("dborder")}`, cursor: "pointer", color: V("dt2"),
-            display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = V("da"); e.currentTarget.style.color = V("da"); }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = V("dborder"); e.currentTarget.style.color = V("dt2"); }}
-        >
-          {open ? <IcLeft /> : <IcRight />}
-        </button>
-      </div>
-    </aside>
-  );
-}
+            display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0

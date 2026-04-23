@@ -1,3 +1,5 @@
+// service-ai-backend/src/routes/pr.routes.js
+
 const express = require("express");
 const router = express.Router();
 
@@ -50,6 +52,8 @@ try {
  *     responses:
  *       200:
  *         description: Analysis started
+ *       404:
+ *         description: PR not found
  */
 router.post("/analyze", auth, analyzePR);
 
@@ -112,16 +116,22 @@ router.post("/:prId/stop", auth, async (req, res) => {
     });
 
     // Mark all running/pending step logs as failed
-    await prisma.stepLog.updateMany({
+    const stepLogsToFail = await prisma.stepLog.findMany({
       where: {
         prId,
         status: { in: ["running", "pending"] },
       },
-      data: {
-        status: "failed",
-        details: "Stopped by user",
-      },
     });
+
+    await Promise.all(stepLogsToFail.map(async (stepLog) => {
+      await prisma.stepLog.update({
+        where: { id: stepLog.id },
+        data: {
+          status: "failed",
+          details: "Stopped by user",
+        },
+      });
+    }));
 
     // Broadcast stop via Socket.IO so React updates immediately
     try {
@@ -177,7 +187,7 @@ router.post("/:prId/stop", auth, async (req, res) => {
 router.get("/", auth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const page  = Math.max(1, parseInt(req.query.page)  || 1);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, parseInt(req.query.limit) || 10);
     const status = req.query.status || null;
     const skip = (page - 1) * limit;
@@ -191,11 +201,6 @@ router.get("/", auth, async (req, res) => {
         orderBy: { createdAt: "desc" },
         skip,
         take: limit,
-        include: {
-          stepLogs: {
-            orderBy: { createdAt: "asc" },
-          },
-        },
       }),
       prisma.prJob.count({ where }),
     ]);
@@ -243,18 +248,18 @@ router.get("/:prId", auth, async (req, res) => {
 
     const pr = await prisma.prJob.findFirst({
       where: { id: prId, userId },
-      include: {
-        stepLogs: {
-          orderBy: { createdAt: "asc" },
-        },
-      },
     });
 
     if (!pr) {
       return res.status(404).json({ error: "PR not found" });
     }
 
-    res.json({ data: pr });
+    const steps = await prisma.stepLog.findMany({
+      where: { prId: pr.id },
+      orderBy: { createdAt: "asc" },
+    });
+
+    res.json({ data: pr, steps });
   } catch (err) {
     logger.error("🔥 Get PR error", err);
     res.status(500).json({ error: "Failed to fetch PR" });
@@ -283,6 +288,14 @@ router.get("/:prId", auth, async (req, res) => {
 router.get("/:prId/status", auth, async (req, res) => {
   try {
     const { prId } = req.params;
+
+    const pr = await prisma.prJob.findUnique({
+      where: { id: prId },
+    });
+
+    if (!pr) {
+      return res.status(404).json({ error: "PR not found" });
+    }
 
     const steps = await prisma.stepLog.findMany({
       where: { prId },

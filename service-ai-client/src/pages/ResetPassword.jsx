@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, Link, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import { resetPassword, clearMessages } from "../store/slices/authSlice";
-import { useTheme } from "../context/ThemeContext";
+import { use Theme } from "../context/ThemeContext";
 import { AuthField, AuthBg, Eye, EyeOff, DARK_T, LIGHT_T } from "../components/AuthField";
 
 export default function ResetPassword() {

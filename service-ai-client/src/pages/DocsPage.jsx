@@ -13,7 +13,6 @@ const ENDPOINTS = [
   { method: "GET", path: "/api/pr", auth: true, desc: "Get all PRs for logged-in user (paginated)" },
   { method: "GET", path: "/api/pr/:prId", auth: true, desc: "Get single PR with all step details" },
   { method: "GET", path: "/api/pr/:prId/status", auth: true, desc: "Get step status for a PR" },
-  { method: "POST", path: "/api/webhooks/agent", auth: "HMAC", desc: "Receive step updates from AI agent" },
   { method: "POST", path: "/api/webhooks/github", auth: "HMAC", desc: "Receive GitHub pull_request events" },
   { method: "PATCH", path: "/api/admin/make-admin/:userId", auth: true, desc: "Promote user to admin role" },
 ];
@@ -104,12 +103,4 @@ export default function DocsPage() {
                 }}>
                   {ep.auth === "HMAC" ? "HMAC" : ep.auth ? "JWT" : "public"}
                 </span>
-                <p style={{ fontSize: "12px", color: V("dt2"), minWidth: "200px", textAlign: "right" }}>{ep.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </DashLayout>
-  );
-}
+                <p style={{ fontSize: "12px", color:

@@ -1,3 +1,4 @@
+.gitignore
 # Logs
 logs
 *.log
@@ -13,7 +14,7 @@ dist-ssr
 *.local
 
 # Editor directories and files
-.vscode/*
+!.vscode/*
 !.vscode/extensions.json
 .idea
 .DS_Store
@@ -21,4 +22,11 @@ dist-ssr
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+*.swp
+*.iml
+*.tmp
+
+# Added for new schema.prisma model
+node_modules/prisma
+dist/prisma
+dist-ssr/prisma
