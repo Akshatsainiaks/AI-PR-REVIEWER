@@ -9,7 +9,7 @@ import api from "../services/api";
 
 const V = (p) => `var(--${p})`;
 
-const STEPS = ["fetch_pr", "clone_repo", "analyze_code", "generate_review"];
+const STEPS = ["fetch_pr", "analyze_code", "clone_repo", "generate_review"];
 const STEP_LABELS = {
   fetch_pr:        "Fetch PR diff & metadata from GitHub",
   clone_repo:      "Clone repository to isolated workspace",
@@ -258,7 +258,8 @@ export default function PRDetail() {
 }
 
 const AnalysisPreview = ({ analysis }) => {
-  if (!analysis) return null;
+  const data = analysis?.analysis || analysis;
+  if (!data) return null;
 
   return (
     <div style={{ marginTop: "24px", background: V("db2"), border: `1px solid ${V("dborder")}`, borderRadius: "16px", padding: "24px", width: "100%" }}>
@@ -266,14 +267,14 @@ const AnalysisPreview = ({ analysis }) => {
       
       <div style={{ marginBottom: "24px", padding: "16px", background: "rgba(192,132,252,0.06)", border: "1px solid rgba(192,132,252,0.2)", borderRadius: "12px" }}>
         <h3 style={{ fontSize: "13px", fontWeight: 600, color: V("da"), marginBottom: "8px" }}>Summary</h3>
-        <p style={{ fontSize: "13px", color: V("dt"), lineHeight: 1.6 }}>{analysis.summary || "No summary provided."}</p>
+        <p style={{ fontSize: "13px", color: V("dt"), lineHeight: 1.6 }}>{data.summary || "No summary provided."}</p>
       </div>
 
-      {analysis.problems && analysis.problems.length > 0 ? (
+      {data.problems && data.problems.length > 0 ? (
         <div>
           <h3 style={{ fontSize: "14px", fontWeight: 600, color: V("dt"), marginBottom: "12px" }}>Identified Issues & Suggestions</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
-            {analysis.problems.map((p, idx) => (
+            {data.problems.map((p, idx) => (
               <div key={idx} style={{ background: V("db3"), border: `1px solid ${V("dborder")}`, borderRadius: "12px", padding: "16px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
