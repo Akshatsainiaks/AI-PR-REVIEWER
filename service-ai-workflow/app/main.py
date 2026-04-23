@@ -3,12 +3,13 @@ import logging
 import re
 import subprocess
 import uvicorn
+import time
+import httpx
 from typing import List, Dict, Any
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
-from elasticsearch import Elasticsearch
 
 from app.mcp.server import (
     mcp,
@@ -18,6 +19,7 @@ from app.mcp.server import (
     write_file,
     commit_and_push,
     merge_pr,
+    create_pr,
 )
 from app.agents.pr_agent import PRAgent
 
@@ -31,9 +33,6 @@ logger = logging.getLogger(__name__)
 # Initialize FastAPI app
 app = FastAPI(title="AI PR Agent - Backend AI")
 
-# Initialize external services
-elasticsearch_url = os.getenv("ELASTICSEARCH_URL", "http://localhost:9200")
-es = Elasticsearch(elasticsearch_url)
 pr_agent = PRAgent()
 
 
@@ -60,22 +59,33 @@ class AnalyzeRequest(BaseModel):
         description="The base branch of the PR",
         json_schema_extra={"example": "main"},
     )
+    meta: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Metadata from the backend, including prId",
+    )
 
+
+def _update_step_status(meta: Dict[str, Any], step: str, status: str, details: str = ""):
+    pr_id = meta.get("prId")
+    if not pr_id:
+        return
+    webhook_url = os.getenv("NODE_BACKEND_URL", "http://localhost:3000/api/pr/webhook/step")
+    try:
+        httpx.post(webhook_url, json={
+            "prId": pr_id,
+            "step": step,
+            "status": status,
+            "details": details
+        }, timeout=5.0)
+    except Exception as e:
+        logger.warning(f"Failed to send webhook for {step}: {e}")
 
 @app.get("/health")
 async def health():
     """
     Service health check endpoint.
-    Checks connectivity to internal dependencies like Elasticsearch.
     """
-    es_status = "unhealthy"
-    try:
-        if es.ping():
-            es_status = "healthy"
-    except Exception as e:
-        logger.error(f"Elasticsearch health check failed: {str(e)}")
-
-    return {"status": "healthy", "service": "backend-ai", "elasticsearch": es_status}
+    return {"status": "healthy", "service": "backend-ai"}
 
 
 def _extract_files_from_diff(diff_text: str) -> List[str]:
@@ -91,7 +101,7 @@ def _extract_files_from_diff(diff_text: str) -> List[str]:
     return re.findall(r"diff --git a/(.*?) b/", diff_text)
 
 
-def _apply_ai_fixes(workspace: str, diff_text: str, branch: str) -> None:
+def _apply_ai_fixes(workspace: str, diff_text: str, branch: str, ai_branch: str) -> None:
     """
     Orchestrates the process of reading affected files, generating fixes via LLM,
     and writing them back to the workspace.
@@ -99,13 +109,18 @@ def _apply_ai_fixes(workspace: str, diff_text: str, branch: str) -> None:
     Args:
         workspace (str): Path to the cloned repository.
         diff_text (str): The diff containing issues.
-        branch (str): The branch name to checkout.
+        branch (str): The original branch name to checkout.
+        ai_branch (str): The new AI fix branch name.
         
     Raises:
         Exception: If any step fails during fix application.
     """
-    logger.info(f"Checking out branch {branch} in workspace {workspace}")
+    logger.info(f"Checking out original branch {branch} in workspace {workspace}")
+    subprocess.run(["git", "fetch", "origin", branch], cwd=workspace, capture_output=True)
     subprocess.run(["git", "checkout", branch], cwd=workspace, check=True)
+
+    logger.info(f"Creating and checking out new AI branch {ai_branch}")
+    subprocess.run(["git", "checkout", "-b", ai_branch], cwd=workspace, check=True)
 
     files = _extract_files_from_diff(diff_text)
     if not files:
@@ -162,12 +177,17 @@ async def fix_and_merge(request: AnalyzeRequest):
         repo = request.repo.strip("/")
 
         # 1. Analysis Phase
+        _update_step_status(request.meta, "fetch_pr", "running", "Fetching diff from GitHub...")
         diff_data = get_pr_diff(repo, request.pr_id, github_token)
         if "error" in diff_data:
+            _update_step_status(request.meta, "fetch_pr", "failed", diff_data["error"])
             raise HTTPException(status_code=400, detail=f"Diff fetch failed: {diff_data['error']}")
+        _update_step_status(request.meta, "fetch_pr", "completed", "Diff fetched successfully")
 
+        _update_step_status(request.meta, "analyze_code", "running", "Analyzing diff for issues...")
         diff_text = diff_data["diff"]
         analysis = pr_agent.analyze_diff(diff_text)
+        _update_step_status(request.meta, "analyze_code", "completed", "Analysis complete")
 
         # 2. Fix Phase (if needed)
         should_fix = analysis.get("fix_suggested", False) or not analysis.get("is_correct", True)
@@ -177,34 +197,66 @@ async def fix_and_merge(request: AnalyzeRequest):
             workspace = os.path.join(work_dir_base, str(request.pr_id))
             
             # Clone and setup
+            _update_step_status(request.meta, "clone_repo", "running", f"Cloning repository {repo}...")
             clone_res = clone_repo(repo, workspace, github_token)
             if clone_res.get("status") == "error":
+                _update_step_status(request.meta, "clone_repo", "failed", clone_res.get('stderr', ''))
                 raise HTTPException(status_code=500, detail=f"Repo setup failed: {clone_res.get('stderr')}")
+            _update_step_status(request.meta, "clone_repo", "completed", "Repository cloned successfully")
+
+            _update_step_status(request.meta, "generate_review", "running", "Generating and applying AI fixes...")
+            ai_branch = f"ai/fix-{request.pr_id}-{int(time.time())}"
 
             # Apply LLM Fixes
-            _apply_ai_fixes(workspace, diff_text, request.branch)
+            _apply_ai_fixes(workspace, diff_text, request.branch, ai_branch)
 
             # Commit and Push
             commit_msg = f"AI: Applied automated fixes for PR #{request.pr_id}\n\nIssues addressed:\n"
             for p in analysis.get("problems", []):
                 commit_msg += f"- {p.get('file')}: {p.get('issue')}\n"
 
-            push_res = commit_and_push(workspace, request.branch, commit_msg)
+            push_res = commit_and_push(workspace, ai_branch, commit_msg)
             if push_res.get("status") == "error":
+                _update_step_status(request.meta, "generate_review", "failed", push_res.get('stderr', ''))
                 raise HTTPException(status_code=500, detail=f"Push failed: {push_res.get('stderr')}")
+
+            # 3. Create PR Phase
+            logger.info(f"Workflow: Raising new PR from {ai_branch} to {request.base}")
+            pr_title = f"AI Fixes for PR #{request.pr_id}"
+            pr_body = f"This PR contains automated AI fixes for issues found in PR #{request.pr_id}.\n\n" + commit_msg
+            
+            create_pr_res = create_pr(
+                title=pr_title,
+                body=pr_body,
+                branch=ai_branch,
+                base=request.branch,
+                github_token=github_token,
+                repo=repo
+            )
+
+            _update_step_status(request.meta, "generate_review", "completed", "Fixes applied and PR raised")
+
+            return {
+                "pr_id": request.pr_id,
+                "status": "completed",
+                "analysis": analysis,
+                "create_pr_result": create_pr_res
+            }
         else:
             logger.info(f"Workflow: No fixes needed for PR {request.pr_id}")
 
-        # 3. Merge Phase
-        logger.info(f"Workflow: Finalizing PR {request.pr_id} with merge")
-        merge_res = merge_pr(repo, request.pr_id, github_token)
+            # 3. Merge Phase (Original PR is correct)
+            _update_step_status(request.meta, "generate_review", "running", "No fixes needed, merging...")
+            logger.info(f"Workflow: Finalizing PR {request.pr_id} with merge")
+            merge_res = merge_pr(repo, request.pr_id, github_token)
+            _update_step_status(request.meta, "generate_review", "completed", "PR merged successfully")
 
-        return {
-            "pr_id": request.pr_id,
-            "status": "completed",
-            "analysis": analysis,
-            "merge_result": merge_res
-        }
+            return {
+                "pr_id": request.pr_id,
+                "status": "completed",
+                "analysis": analysis,
+                "merge_result": merge_res
+            }
     except HTTPException:
         raise
     except Exception as e:

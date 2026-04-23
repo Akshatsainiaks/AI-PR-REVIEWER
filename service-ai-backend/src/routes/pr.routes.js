@@ -21,6 +21,32 @@ try {
  *     description: PR Analysis APIs
  */
 
+// Webhook for FastAPI to update step status in real-time
+router.post("/webhook/step", async (req, res) => {
+  try {
+    const { prId, step, status, details } = req.body;
+    if (!prId || !step || !status) {
+      return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    await prisma.stepLog.updateMany({
+      where: { prId, step },
+      data: { status, details: details || "" },
+    });
+
+    try {
+      broadcastStep(prId, step, status, details || "");
+    } catch (socketErr) {
+      logger.warn("⚠️ Could not broadcast step event", socketErr?.message);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    logger.error("🔥 Webhook step error", err);
+    res.status(500).json({ error: "Internal error" });
+  }
+});
+
 /**
  * @swagger
  * /pr/analyze:
@@ -293,6 +319,65 @@ router.get("/:prId/status", auth, async (req, res) => {
   } catch (err) {
     logger.error("🔥 Status error", err);
     res.status(500).json({ error: "Failed to fetch status" });
+  }
+});
+/**
+ * @swagger
+ * /pr/{prId}/diff:
+ *   get:
+ *     summary: Get raw git diff for PR
+ *     tags: [PR]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: prId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Diff text
+ */
+router.get("/:prId/diff", auth, async (req, res) => {
+  try {
+    const { prId } = req.params;
+    const userId = req.user.id;
+
+    const pr = await prisma.prJob.findFirst({
+      where: { id: prId, userId },
+    });
+
+    if (!pr) return res.status(404).json({ error: "PR not found" });
+
+    // Check if AI generated a new PR
+    const aiPrNumber = pr.analysis?.create_pr_result?.number;
+    let diffUrl = "";
+
+    const match = pr.prUrl.match(/github\.com\/(.+?)\/(.+?)\/pull\/(\d+)/);
+    if (match) {
+      const owner = match[1];
+      const repo = match[2];
+      const prNumber = aiPrNumber || match[3];
+      diffUrl = `https://api.github.com/repos/${owner}/${repo}/pulls/${prNumber}`;
+    }
+
+    if (!diffUrl) return res.status(400).json({ error: "Invalid PR URL" });
+
+    const axios = require("axios");
+    const diffRes = await axios.get(diffUrl, {
+      headers: {
+        Accept: "application/vnd.github.v3.diff",
+        ...(process.env.GITHUB_TOKEN && { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` })
+      }
+    });
+
+    // We send plain text diff
+    res.setHeader("Content-Type", "text/plain");
+    res.send(diffRes.data);
+  } catch (err) {
+    logger.error("🔥 Get diff error", err.message);
+    res.status(500).json({ error: "Failed to fetch diff" });
   }
 });
 

@@ -28,7 +28,7 @@ class PRAgent:
         if not self.api_key:
             raise ValueError("GROQ_API_KEY not found in environment")
 
-        self.client = Groq(api_key=self.api_key)
+        self.client = Groq(api_key=self.api_key, max_retries=6)
 
     def analyze_diff(self, diff_text: str) -> dict:
         """
@@ -41,6 +41,11 @@ class PRAgent:
             dict: Structured analysis containing 'is_correct', 'summary', 
                   'problems', and 'fix_suggested'.
         """
+        max_chars = 12000
+        if len(diff_text) > max_chars:
+            logger.warning(f"Diff length {len(diff_text)} exceeds {max_chars} chars. Truncating.")
+            diff_text = diff_text[:max_chars] + "\n... [DIFF TRUNCATED DUE TO LENGTH] ..."
+
         prompt = f"""
         Analyze the following git diff and identify any potential bugs, security issues, or code quality problems.
         Provide your analysis in a structured JSON format with the following keys:
@@ -109,6 +114,14 @@ class PRAgent:
         Returns:
             str: The entire corrected file content. Returns original if generation fails.
         """
+        if len(original_content) > 50000:
+            logger.warning(f"File {file_path} too large ({len(original_content)} chars). Skipping fix generation.")
+            return original_content
+
+        max_diff_chars = 4000
+        if len(diff_text) > max_diff_chars:
+            diff_text = diff_text[:max_diff_chars] + "\n... [DIFF TRUNCATED DUE TO LENGTH] ..."
+
         prompt = f"""
         The following file has issues identified in a recent change (diff).
         Your task is to provide the ENTIRE corrected content of the file.
