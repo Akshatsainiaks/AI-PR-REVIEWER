@@ -1,6 +1,7 @@
 const prisma = require("../config/prisma");
 const axios = require("axios");
 const logger = require("../utils/logger");
+const { broadcastStep } = require("../services/socket.service");
 
 exports.analyzePR = async (req, res) => {
   try {
@@ -57,6 +58,7 @@ exports.analyzePR = async (req, res) => {
       where: { prId: pr.id, step: "fetch_pr" },
       data: { status: "running" },
     });
+    broadcastStep(pr.id, "fetch_pr", "running", "Initiated GitHub fetch");
 
     const payload = {
       pr_id: prNumber,
@@ -69,33 +71,49 @@ exports.analyzePR = async (req, res) => {
       },
     };
 
-    let aiResponse;
-
-    try {
-      const response = await axios.post(
-        `${fastApiUrl}/agent/analyze`,
-        payload
-      );
-
-      aiResponse = response.data;
-
-      logger.info("✅ FastAPI success", aiResponse);
-
-    } catch (apiErr) {
-      logger.error("⚠️ FastAPI error", apiErr.response?.data);
-
-      aiResponse = {
-        status: "mock",
-        message: "AI service connected but GitHub failed",
-      };
-    }
-
+    // Return early so the dashboard navigates instantly
     res.json({
       message: "PR analysis triggered",
       prId: pr.id,
       status: "processing",
-      aiResponse,
     });
+
+    // Run the long FastAPI process in the background
+    axios.post(`${fastApiUrl}/agent/fix-and-merge`, payload)
+      .then(async (response) => {
+        const aiResponse = response.data;
+        logger.info("✅ FastAPI success", aiResponse);
+
+        for (const step of steps) {
+          await prisma.stepLog.updateMany({
+            where: { prId: pr.id, step },
+            data: { status: "completed" },
+          });
+          broadcastStep(pr.id, step, "completed", "Done");
+        }
+
+        await prisma.prJob.update({
+          where: { id: pr.id },
+          data: { 
+            status: "completed",
+            analysis: aiResponse || null
+          },
+        });
+      })
+      .catch(async (apiErr) => {
+        logger.error("⚠️ FastAPI error", apiErr.response?.data || apiErr.message);
+
+        await prisma.stepLog.updateMany({
+          where: { prId: pr.id, step: "fetch_pr" },
+          data: { status: "failed", details: "Failed connecting to backend AI" },
+        });
+        broadcastStep(pr.id, "fetch_pr", "failed", "AI Service Error");
+
+        await prisma.prJob.update({
+          where: { id: pr.id },
+          data: { status: "failed" },
+        });
+      });
 
   } catch (err) {
     logger.error("🔥 PR Analyze ERROR", err);

@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { fetchPR } from "../store/slices/prSlice";
 import { useSocket } from "../hooks/useSocket";
 import DashLayout from "../components/layout/DashLayout";
+import DiffViewer from "../components/DiffViewer";
 import api from "../services/api";
 
 const V = (p) => `var(--${p})`;
@@ -243,10 +244,74 @@ export default function PRDetail() {
             </div>
           </div>
         </div>
+        
+        {isCompleted && currentPR?.analysis && (
+          <AnalysisPreview analysis={currentPR.analysis} />
+        )}
+        
+        {isCompleted && (
+          <DiffViewer prId={prId} />
+        )}
       </div>
     </DashLayout>
   );
 }
+
+const AnalysisPreview = ({ analysis }) => {
+  if (!analysis) return null;
+
+  return (
+    <div style={{ marginTop: "24px", background: V("db2"), border: `1px solid ${V("dborder")}`, borderRadius: "16px", padding: "24px", width: "100%" }}>
+      <h2 style={{ fontSize: "16px", fontWeight: 700, color: V("dt"), marginBottom: "16px" }}>AI Analysis Report</h2>
+      
+      <div style={{ marginBottom: "24px", padding: "16px", background: "rgba(192,132,252,0.06)", border: "1px solid rgba(192,132,252,0.2)", borderRadius: "12px" }}>
+        <h3 style={{ fontSize: "13px", fontWeight: 600, color: V("da"), marginBottom: "8px" }}>Summary</h3>
+        <p style={{ fontSize: "13px", color: V("dt"), lineHeight: 1.6 }}>{analysis.summary || "No summary provided."}</p>
+      </div>
+
+      {analysis.problems && analysis.problems.length > 0 ? (
+        <div>
+          <h3 style={{ fontSize: "14px", fontWeight: 600, color: V("dt"), marginBottom: "12px" }}>Identified Issues & Suggestions</h3>
+          <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+            {analysis.problems.map((p, idx) => (
+              <div key={idx} style={{ background: V("db3"), border: `1px solid ${V("dborder")}`, borderRadius: "12px", padding: "16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "14px" }}>📄</span>
+                    <span style={{ fontFamily: "'Fira Code',monospace", fontSize: "12px", color: V("dt"), fontWeight: 600 }}>{p.file}</span>
+                  </div>
+                  <span style={{ 
+                    fontSize: "10px", padding: "2px 8px", borderRadius: "4px", textTransform: "uppercase", fontWeight: 700,
+                    background: p.severity === "high" ? "rgba(248,113,113,0.15)" : p.severity === "medium" ? "rgba(250,204,21,0.15)" : "rgba(74,222,128,0.15)",
+                    color: p.severity === "high" ? "var(--dred)" : p.severity === "medium" ? "#facc15" : "var(--dgreen)"
+                  }}>
+                    {p.severity}
+                  </span>
+                </div>
+                
+                <div style={{ marginBottom: "12px" }}>
+                  <p style={{ fontSize: "11px", color: V("dt3"), textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>Issue</p>
+                  <p style={{ fontSize: "13px", color: V("dred"), lineHeight: 1.5 }}>{p.issue}</p>
+                </div>
+                
+                <div>
+                  <p style={{ fontSize: "11px", color: V("dt3"), textTransform: "uppercase", letterSpacing: "1px", marginBottom: "4px" }}>AI Suggestion</p>
+                  <p style={{ fontSize: "13px", color: "var(--dgreen)", lineHeight: 1.5, fontFamily: "'Plus Jakarta Sans',sans-serif" }}>{p.suggestion}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div style={{ textAlign: "center", padding: "32px", background: V("db3"), borderRadius: "12px", border: "1px dashed var(--dborder)" }}>
+          <p style={{ fontSize: "24px", marginBottom: "8px" }}>✨</p>
+          <p style={{ fontSize: "14px", fontWeight: 600, color: V("dgreen") }}>No issues found</p>
+          <p style={{ fontSize: "12px", color: V("dt2") }}>The AI reviewed the code and found no problems.</p>
+        </div>
+      )}
+    </div>
+  );
+};
 
 const StepIcon = ({ status }) => {
   const cfg = {
