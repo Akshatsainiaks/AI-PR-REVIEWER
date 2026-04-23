@@ -81,6 +81,12 @@ exports.analyzePR = async (req, res) => {
     // Run the long FastAPI process in the background
     axios.post(`${fastApiUrl}/agent/fix-and-merge`, payload)
       .then(async (response) => {
+        const currentJob = await prisma.prJob.findUnique({ where: { id: pr.id } });
+        if (currentJob?.status === "failed") {
+          logger.info("FastAPI finished but job was already stopped/failed. Ignoring success.");
+          return;
+        }
+
         const aiResponse = response.data;
         logger.info("✅ FastAPI success", aiResponse);
 
@@ -101,13 +107,23 @@ exports.analyzePR = async (req, res) => {
         });
       })
       .catch(async (apiErr) => {
+        const errorDetail = apiErr.response?.data?.detail || "AI Service Error";
         logger.error("⚠️ FastAPI error", apiErr.response?.data || apiErr.message);
 
-        await prisma.stepLog.updateMany({
-          where: { prId: pr.id, step: "fetch_pr" },
-          data: { status: "failed", details: "Failed connecting to backend AI" },
+        // Find which steps were left hanging
+        const activeSteps = await prisma.stepLog.findMany({
+          where: { prId: pr.id, status: { in: ["running", "pending"] } },
         });
-        broadcastStep(pr.id, "fetch_pr", "failed", "AI Service Error");
+
+        // Mark them as failed without overwriting steps that already succeeded or failed via webhook
+        await prisma.stepLog.updateMany({
+          where: { prId: pr.id, status: { in: ["running", "pending"] } },
+          data: { status: "failed", details: errorDetail },
+        });
+
+        for (const s of activeSteps) {
+          broadcastStep(pr.id, s.step, "failed", errorDetail);
+        }
 
         await prisma.prJob.update({
           where: { id: pr.id },
