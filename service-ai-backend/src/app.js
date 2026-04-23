@@ -28,11 +28,25 @@ app.use(
 
 app.use(
   cors({
-    origin: [
-      "http://localhost:3001",
-      "https://revuzenai.site",
-      "https://www.revuzenai.site"
-    ],
+    origin: function (origin, callback) {
+      const allowedOrigins = [
+        "http://localhost:3001",
+        "https://revuzenai.site",
+        "https://www.revuzenai.site"
+      ];
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      // Allow explicitly defined origins
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        return callback(null, true);
+      }
+      // Allow all vercel preview deployments
+      if (origin.endsWith(".vercel.app")) {
+        return callback(null, true);
+      }
+      
+      callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
   })
 );

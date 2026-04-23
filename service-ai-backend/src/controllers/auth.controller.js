@@ -71,8 +71,8 @@ exports.register = async (req, res) => {
 // ── Login ─────────────────────────────────────────────────────────────────────
 exports.login = async (req, res) => {
   try {
-    const email = req.body.email?.toLowerCase().trim();
-    const password = req.body.password?.trim();
+    const email = req.body?.email?.toLowerCase().trim();
+    const password = req.body?.password?.trim();
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email and password required" });
