@@ -74,41 +74,67 @@ export default function DiffViewer({ prId, hasAiChanges }) {
           background-color: var(--db2);
         }
         .d2h-file-header {
-          background-color: var(--db3);
-          border-bottom: 1px solid var(--dborder);
-          color: var(--dt);
+          background-color: var(--db3) !important;
+          border-bottom: 1px solid var(--dborder) !important;
+          color: var(--dt) !important;
         }
         .d2h-file-list-wrapper {
           margin-bottom: 0;
-          background-color: var(--db3);
-          border: none;
+          background-color: var(--db3) !important;
+          border: none !important;
         }
         .d2h-file-list-header {
-          background-color: var(--dborder);
-          color: var(--dt);
-          border-bottom: none;
+          background-color: var(--dborder) !important;
+          color: var(--dt) !important;
+          border-bottom: none !important;
         }
         .d2h-file-name {
-          color: var(--da);
+          color: var(--da) !important;
         }
-        .d2h-code-line {
-          font-family: 'Fira Code', monospace;
-          font-size: 12px;
+        .d2h-code-line, .d2h-code-line-ctn {
+          font-family: 'Fira Code', monospace !important;
+          font-size: 12px !important;
+          color: var(--dt) !important; /* Force text color to be light in dark mode */
         }
         .d2h-code-side-line {
           padding: 0 4px;
+          color: var(--dt) !important;
+        }
+        /* Added lines background */
+        .d2h-ins {
+          background-color: rgba(46, 160, 67, 0.15) !important;
+          border-color: rgba(46, 160, 67, 0.4) !important;
+        }
+        .d2h-ins .d2h-code-line-ctn, .d2h-ins .d2h-code-line {
+          background-color: transparent !important;
+        }
+        /* Deleted lines background */
+        .d2h-del {
+          background-color: rgba(248, 81, 73, 0.15) !important;
+          border-color: rgba(248, 81, 73, 0.4) !important;
+        }
+        .d2h-del .d2h-code-line-ctn, .d2h-del .d2h-code-line {
+          background-color: transparent !important;
         }
         /* Make it fit nicely inside the dark theme */
         .d2h-diff-tbody {
-          border-color: var(--dborder);
+          border-color: var(--dborder) !important;
         }
         .d2h-code-side-linenumber {
-          background-color: var(--db3);
-          border-color: var(--dborder);
-          color: var(--dt3);
+          background-color: var(--db3) !important;
+          border-color: var(--dborder) !important;
+          color: var(--dt3) !important;
         }
         .d2h-code-side-emptyplaceholder {
-          background-color: var(--db2);
+          background-color: var(--db2) !important;
+        }
+        /* Diff block header lines */
+        .d2h-info {
+          background-color: rgba(192, 132, 252, 0.1) !important;
+          color: var(--da) !important;
+        }
+        .d2h-file-diff {
+          overflow-x: auto;
         }
       `}} />
       <div dangerouslySetInnerHTML={{ __html: html }} />

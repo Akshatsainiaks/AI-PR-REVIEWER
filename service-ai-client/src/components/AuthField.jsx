@@ -20,7 +20,8 @@ export const DARK_T = {
   bg: "#07080f", bg2: "#0c0e1a", bg3: "#11152a",
   border: "rgba(120,130,220,0.12)", borderH: "rgba(120,130,220,0.28)",
   text: "#eef0ff", text2: "#7b85b0", text3: "#3d4468",
-  accent: "#c084fc", accentGlow: "rgba(192,132,252,0.22)",
+  accent: "#c084fc", accentGlow: "rgba(192,132,252,0.22)", accentDim: "rgba(192,132,252,0.1)",
+  cyan: "#22d3ee", cyanDim: "rgba(34,211,238,0.1)",
   green: "#4ade80", rose: "#fb7185",
   inputBg: "#0c0e1a", inputBorder: "rgba(120,130,220,0.2)",
 };
@@ -29,7 +30,8 @@ export const LIGHT_T = {
   bg: "#f9f8ff", bg2: "#ffffff", bg3: "#f0eff9",
   border: "rgba(100,80,200,0.1)", borderH: "rgba(100,80,200,0.25)",
   text: "#0d0d1a", text2: "#5a5c7a", text3: "#9a9cb8",
-  accent: "#7c3aed", accentGlow: "rgba(124,58,237,0.18)",
+  accent: "#7c3aed", accentGlow: "rgba(124,58,237,0.18)", accentDim: "rgba(124,58,237,0.1)",
+  cyan: "#0891b2", cyanDim: "rgba(8,145,178,0.1)",
   green: "#16a34a", rose: "#dc2626",
   inputBg: "#f8f9fc", inputBorder: "rgba(100,80,200,0.15)",
 };
@@ -71,15 +73,23 @@ export function AuthBg({ T, children }) {
 export function AuthLogoMark({ T }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "28px" }}>
-      <div style={{ width: 30, height: 30, borderRadius: "8px", background: T.accent, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-          <polygon points="13,2 23,7.5 23,18.5 13,24 3,18.5 3,7.5" fill="none" stroke="white" strokeWidth="2"/>
-          <circle cx="13" cy="13" r="3" fill="white"/>
-        </svg>
-      </div>
-      <span style={{ fontFamily: "'Plus Jakarta Sans',sans-serif", fontWeight: 800, fontSize: "17px", color: T.text }}>
-        Revuzen<span style={{ color: T.accent, fontWeight: 300 }}> AI</span>
-      </span>
+      <svg width="148" height="34" viewBox="0 0 148 34" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="lg1_auth" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor={T.accent}/>
+            <stop offset="100%" stopColor={T.cyan}/>
+          </linearGradient>
+        </defs>
+        <polygon points="17,2 30,9.5 30,24.5 17,32 4,24.5 4,9.5" fill="none" stroke="url(#lg1_auth)" strokeWidth="1.5"/>
+        <polygon points="17,8 24,12 24,20 17,24 10,20 10,12" fill={T.accentDim} stroke={T.accent} strokeWidth="1" opacity="0.8"/>
+        <circle cx="17" cy="16" r="3.5" fill={T.accent}/>
+        <line x1="30" y1="16" x2="36" y2="16" stroke={T.accent} strokeWidth="1.2" opacity="0.4"/>
+        <line x1="36" y1="16" x2="36" y2="11" stroke={T.accent} strokeWidth="1.2" opacity="0.4"/>
+        <circle cx="36" cy="11" r="1.5" fill={T.accent} opacity="0.4"/>
+        <line x1="4" y1="16" x2="0" y2="16" stroke={T.cyan} strokeWidth="1" opacity="0.3"/>
+        <text x="44" y="22" fontFamily="'Plus Jakarta Sans',sans-serif" fontWeight="800" fontSize="17" fill={T.text} letterSpacing="-0.5">Revuzen</text>
+        <text x="114" y="22" fontFamily="'Plus Jakarta Sans',sans-serif" fontWeight="300" fontSize="17" fill={T.accent}>AI</text>
+      </svg>
     </div>
   );
 }

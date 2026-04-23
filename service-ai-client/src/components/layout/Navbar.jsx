@@ -16,18 +16,22 @@ const IcLogout = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="non
 const IcAnalytics = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
 
 const Logo = () => (
-  <svg width="124" height="28" viewBox="0 0 124 28" fill="none">
+  <svg width="124" height="28" viewBox="0 0 148 34" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: "scale(0.85)", transformOrigin: "left center" }}>
     <defs>
-      <linearGradient id="ngl" x1="0%" y1="0%" x2="100%" y2="100%">
+      <linearGradient id="lg1_nav" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="var(--da)"/>
         <stop offset="100%" stopColor="var(--dcyan)"/>
       </linearGradient>
     </defs>
-    <polygon points="13,2 23,7.5 23,18.5 13,24 3,18.5 3,7.5" fill="none" stroke="url(#ngl)" strokeWidth="1.5"/>
-    <polygon points="13,6 19,9.5 19,16.5 13,20 7,16.5 7,9.5" fill="var(--dag)" stroke="var(--da)" strokeWidth="1" opacity="0.8"/>
-    <circle cx="13" cy="13" r="2.8" fill="var(--da)"/>
-    <text x="29" y="19" fontFamily="'Plus Jakarta Sans',sans-serif" fontWeight="800" fontSize="14" fill="var(--dt)" letterSpacing="-0.3">Revuzen</text>
-    <text x="88" y="19" fontFamily="'Plus Jakarta Sans',sans-serif" fontWeight="300" fontSize="14" fill="var(--da)">AI</text>
+    <polygon points="17,2 30,9.5 30,24.5 17,32 4,24.5 4,9.5" fill="none" stroke="url(#lg1_nav)" strokeWidth="1.5"/>
+    <polygon points="17,8 24,12 24,20 17,24 10,20 10,12" fill="var(--dag)" stroke="var(--da)" strokeWidth="1" opacity="0.8"/>
+    <circle cx="17" cy="16" r="3.5" fill="var(--da)"/>
+    <line x1="30" y1="16" x2="36" y2="16" stroke="var(--da)" strokeWidth="1.2" opacity="0.4"/>
+    <line x1="36" y1="16" x2="36" y2="11" stroke="var(--da)" strokeWidth="1.2" opacity="0.4"/>
+    <circle cx="36" cy="11" r="1.5" fill="var(--da)" opacity="0.4"/>
+    <line x1="4" y1="16" x2="0" y2="16" stroke="var(--dcyan)" strokeWidth="1" opacity="0.3"/>
+    <text x="44" y="22" fontFamily="'Plus Jakarta Sans',sans-serif" fontWeight="800" fontSize="17" fill="var(--dt)" letterSpacing="-0.5">Revuzen</text>
+    <text x="114" y="22" fontFamily="'Plus Jakarta Sans',sans-serif" fontWeight="300" fontSize="17" fill="var(--da)">AI</text>
   </svg>
 );
 

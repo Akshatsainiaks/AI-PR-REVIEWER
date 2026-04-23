@@ -29,6 +29,11 @@ router.post("/webhook/step", async (req, res) => {
       return res.status(400).json({ error: "Missing required fields" });
     }
 
+    const pr = await prisma.prJob.findUnique({ where: { id: prId } });
+    if (pr?.status === "failed") {
+      return res.json({ success: false, message: "PR job is already stopped" });
+    }
+
     await prisma.stepLog.updateMany({
       where: { prId, step },
       data: { status, details: details || "" },
