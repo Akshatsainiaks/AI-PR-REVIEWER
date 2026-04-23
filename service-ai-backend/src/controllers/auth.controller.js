@@ -1,333 +1,3 @@
-// const jwt = require("jsonwebtoken");
-// const bcrypt = require("bcrypt");
-// const { nanoid } = require("nanoid");
-// const prisma = require("../config/prisma");
-// const redis = require("../config/redis");
-// const logger = require("../utils/logger"); 
-// const { sendOTP, verifyOTP } = require("../services/otp.service");
-
-
-// exports.register = async (req, res) => {
-//   try {
-//   const { fullName, name, firstName, lastName, email, password } = req.body;
-
-// logger.info("📝 Register attempt", { email });
-
-// const finalName =
-//   fullName ||
-//   name ||
-//   `${firstName || ""} ${lastName || ""}`.trim();
-
-// if (!finalName) {
-//   return res.status(400).json({ error: "Full name is required" });
-// }
-
-
-//     const passwordRegex =
-//       /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-
-//     if (!passwordRegex.test(password)) {
-//       return res.status(400).json({
-//         error:
-//           "Password must be 8+ chars, include 1 uppercase, 1 number, 1 special character",
-//       });
-//     }
-
- 
-//     const existingUser = await prisma.user.findUnique({
-//       where: { email },
-//     });
-
-//     if (existingUser) {
-//       logger.warn("⚠️ User already exists", { email });
-//       return res.status(400).json({ error: "User already exists" });
-//     }
-
-
-//     const hashedPassword = await bcrypt.hash(password, 10);
-
-
-//     const user = await prisma.user.create({
-//       data: {
-//         id: "usr_" + nanoid(10),
-//         fullName: finalName,
-//         email,
-//         password: hashedPassword,
-//         role: 2,
-//       },
-//     });
-
-//     logger.info("✅ User registered", { userId: user.id });
-
-//     res.status(201).json({
-//       message: "User registered",
-//       user: {
-//         id: user.id,
-//         email: user.email,
-//         fullName: user.fullName,
-//         role: user.role,
-//       },
-//     });
-//   } catch (err) {
-//     logger.error("🔥 Register error", err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// };
-
-// exports.login = async (req, res) => {
-//   try {
-//     const { email, password } = req.body;
-
-//     logger.info("🔑 Login attempt", { email });
-
-
-//     const user = await prisma.user.findUnique({
-//   where: { email },
-// });
-
-// if (!user) {
-//   logger.warn("❌ User not found", { email });
-//   return res.status(401).json({ error: "User not found" });
-// }
-
-
-// const now = new Date();
-
-// const requireOtp =
-//   !user.lastLoginAt ||
-//   (now - new Date(user.lastLoginAt)) > 15 * 24 * 60 * 60 * 1000;
-
-// if (requireOtp) {
-//   await sendOTP(email);
-
-//   return res.json({
-//     message: "OTP required for login",
-//     otpRequired: true,
-//   });
-// }
-
-  
-//     const isMatch = await bcrypt.compare(password, user.password);
-
-//     if (!isMatch) {
-//       logger.warn("❌ Invalid password", { email });
-//       return res.status(401).json({ error: "Invalid password" });
-//     }
-
-
-//     const token = jwt.sign(
-//       { id: user.id, role: user.role },
-//       process.env.JWT_SECRET,
-//       { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
-//     );
-
-
-//     const sessionData = {
-//       id: user.id,
-//       email: user.email,
-//       name: user.fullName,
-//       role: user.role,
-//       token,
-//     };
-
-//     await redis.set(
-//       `session:${user.id}`,
-//       JSON.stringify(sessionData),
-//       "EX",
-//       86400
-//     );
-
-//     logger.info("✅ Login successful", { userId: user.id });
-
-
-//     delete user.password;
-
-//     res.json({
-//       message: "Login successful",
-//       token,
-//       user: {
-//         id: user.id,
-//         email: user.email,
-//         fullName: user.fullName,
-//       },
-//     });
-
-//   } catch (err) {
-//     logger.error("🔥 Login error", err);
-//     res.status(500).json({ error: "Server error" });
-//   }
-// };
-
-
-
-
-// // ----------------------------OTP------------------------------
-
-// // SEND OTP
-// exports.sendOtpController = async (req, res) => {
-//   try {
-//     const { email } = req.body;
-
-//     await sendOTP(email);
-
-//     res.json({ message: "OTP sent to email" });
-//   } catch (err) {
-//     logger.error("🔥 OTP send error", err);
-//     res.status(500).json({ error: "Failed to send OTP" });
-//   }
-// };
-
-// // VERIFY OTP
-// exports.verifyOtpController = async (req, res) => {
-//   try {
-//     const { email, otp } = req.body;
-
-//     const isValid = await verifyOTP(email, otp);
-
-//     if (!isValid) {
-//       return res.status(400).json({ error: "Invalid or expired OTP" });
-//     }
-
-//     let user = await prisma.user.findUnique({ where: { email } });
-
-//     // create user if not exists
-//     if (!user) {
-//       user = await prisma.user.create({
-//         data: {
-//           id: "usr_" + nanoid(10),
-//           fullName: "OTP User",
-//           email,
-//           password: "otp_login",
-//           role: 2,
-//         },
-//       });
-//     }
-
-//     const token = jwt.sign(
-//       { id: user.id, role: user.role },
-//       process.env.JWT_SECRET,
-//       { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
-//     );
-
-//    res.json({
-//   message: "OTP login successful",
-//   token,
-//   user: {
-//     id: user.id,
-//     email: user.email,
-//     fullName: user.fullName,
-//     role: user.role,
-//   },
-// });
-
-//   } catch (err) {
-//     logger.error("🔥 OTP verify error", err);
-//     res.status(500).json({ error: "OTP verification failed" });
-//   }
-// };
-
-
-// exports.sendOtpRegister = async (req, res) => {
-//   try {
-//     const { fullName, email, password } = req.body;
-
-//     const existingUser = await prisma.user.findUnique({ where: { email } });
-//     if (existingUser) {
-//       return res.status(400).json({ error: "User already exists" });
-//     }
-
-//     // store temp user
-//     await storeTempUser(email, { fullName, email, password });
-
-//     await sendOTP(email);
-
-//     res.json({ message: "OTP sent for registration" });
-
-//   } catch (err) {
-//     res.status(500).json({ error: "Failed" });
-//   }
-// };
-
-// exports.verifyOtpRegister = async (req, res) => {
-//   try {
-//     const { email, otp } = req.body;
-
-//     const valid = await verifyOTP(email, otp);
-//     if (!valid) {
-//       return res.status(400).json({ error: "Invalid OTP" });
-//     }
-
-//     const tempUser = await getTempUser(email);
-
-//     const hashedPassword = await bcrypt.hash(tempUser.password, 10);
-
-//     const user = await prisma.user.create({
-//       data: {
-//         id: "usr_" + nanoid(10),
-//         fullName: tempUser.fullName,
-//         email,
-//         password: hashedPassword,
-//         role: 2,
-//       },
-//     });
-
-//     await redis.del(`temp:${email}`);
-//     await redis.del(`otp:${email}`);
-
-//     res.json({ message: "Registration successful" });
-
-//   } catch (err) {
-//     res.status(500).json({ error: "Failed" });
-//   }
-// };
-
-
-// exports.sendOtpLogin = async (req, res) => {
-//   const { email } = req.body;
-
-//   const user = await prisma.user.findUnique({ where: { email } });
-
-//   if (!user) {
-//     return res.status(404).json({ error: "User not found" });
-//   }
-
-//   await sendOTP(email);
-
-//   res.json({ message: "OTP sent for login" });
-// };
-
-// exports.verifyOtpLogin = async (req, res) => {
-//   const { email, otp } = req.body;
-
-//   const valid = await verifyOTP(email, otp);
-
-//   if (!valid) {
-//     return res.status(400).json({ error: "Invalid OTP" });
-//   }
-
-//   const user = await prisma.user.findUnique({ where: { email } });
-
-//   const token = jwt.sign(
-//     { id: user.id, role: user.role },
-//     process.env.JWT_SECRET
-//   );
-
-//   await prisma.user.update({
-//     where: { id: user.id },
-//     data: { lastLoginAt: new Date() },
-//   });
-
-//   res.json({
-//     token,
-//     user: {
-//       id: user.id,
-//       email: user.email,
-//       fullName: user.fullName,
-//     },
-//   });
-// };
-
-
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const bcrypt = require("bcrypt");
@@ -335,8 +5,9 @@ const { nanoid } = require("nanoid");
 const prisma = require("../config/prisma");
 const redis = require("../config/redis");
 const logger = require("../utils/logger");
-const { sendOTP } = require("../services/otp.service");
+const { sendOTP, verifyOTP } = require("../services/otp.service");
 
+// ── Register ──────────────────────────────────────────────────────────────────
 exports.register = async (req, res) => {
   try {
     const email = req.body.email?.toLowerCase().trim();
@@ -356,7 +27,6 @@ exports.register = async (req, res) => {
     }
 
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
-
     if (!passwordRegex.test(password)) {
       return res.status(400).json({
         error: "Password must be 8+ chars, include uppercase, number, special char",
@@ -364,7 +34,6 @@ exports.register = async (req, res) => {
     }
 
     const existingUser = await prisma.user.findUnique({ where: { email } });
-
     if (existingUser) {
       logger.warn("⚠️ User already exists", { email });
       return res.status(400).json({ error: "User already exists" });
@@ -393,13 +62,13 @@ exports.register = async (req, res) => {
         role: user.role,
       },
     });
-
   } catch (err) {
     logger.error("🔥 Register error", err);
     res.status(500).json({ error: "Server error" });
   }
 };
 
+// ── Login ─────────────────────────────────────────────────────────────────────
 exports.login = async (req, res) => {
   try {
     const email = req.body.email?.toLowerCase().trim();
@@ -418,10 +87,15 @@ exports.login = async (req, res) => {
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
-
     if (!isMatch) {
       return res.status(401).json({ error: "Invalid email or password" });
     }
+
+    // Update last login
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLoginAt: new Date() },
+    });
 
     const token = jwt.sign(
       { id: user.id, role: user.role },
@@ -444,6 +118,7 @@ exports.login = async (req, res) => {
 
     logger.info("✅ Login successful", { userId: user.id });
 
+    // Return ALL user fields including github ones (null for non-github users)
     res.json({
       message: "Login successful",
       token,
@@ -451,26 +126,26 @@ exports.login = async (req, res) => {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
+        role: user.role,
+        githubUsername: user.githubUsername || null,
+        avatarUrl: user.avatarUrl || null,
       },
     });
-
   } catch (err) {
     logger.error("🔥 Login error", err);
     res.status(500).json({ error: "Server error" });
   }
 };
 
+// ── Forgot Password ───────────────────────────────────────────────────────────
 exports.forgotPassword = async (req, res) => {
   try {
     const email = req.body.email?.toLowerCase().trim();
-
-    if (!email) {
-      return res.status(400).json({ error: "Email is required" });
-    }
+    if (!email) return res.status(400).json({ error: "Email is required" });
 
     const user = await prisma.user.findUnique({ where: { email } });
 
-
+    // Don't reveal if user exists — always return same message
     if (!user) {
       return res.json({ message: `OTP sent to ${email}` });
     }
@@ -478,7 +153,6 @@ exports.forgotPassword = async (req, res) => {
     await sendOTP(email);
 
     res.json({ message: `OTP sent to ${email}` });
-
   } catch (err) {
     if (err.message?.includes("60 seconds")) {
       return res.status(429).json({ error: err.message });
@@ -488,6 +162,7 @@ exports.forgotPassword = async (req, res) => {
   }
 };
 
+// ── Reset Password ────────────────────────────────────────────────────────────
 exports.resetPassword = async (req, res) => {
   try {
     const email = req.body.email?.toLowerCase().trim();
@@ -498,29 +173,30 @@ exports.resetPassword = async (req, res) => {
     }
 
     const user = await prisma.user.findUnique({ where: { email } });
-
     if (!user) {
       return res.status(400).json({ error: "Invalid request" });
     }
 
     const storedOtp = await redis.get(`reset:${email}`);
-
     if (!storedOtp) {
       return res.status(400).json({ error: "OTP expired or not requested" });
     }
 
-
+    // Brute-force protection: max 3 attempts
     const attempts = await redis.get(`otp_attempts:${email}`);
-    if (attempts && parseInt(attempts) >= 2) {
+    if (attempts && parseInt(attempts) >= 3) {
       await redis.del(`reset:${email}`);
       await redis.del(`otp_attempts:${email}`);
-      return res.status(429).json({ error: "Too many attempts. Please request a new OTP" });
+      return res.status(429).json({ error: "Too many attempts. Please request a new OTP." });
     }
 
     if (storedOtp !== otp) {
       await redis.incr(`otp_attempts:${email}`);
       await redis.expire(`otp_attempts:${email}`, 300);
-      return res.status(400).json({ error: "Invalid OTP" });
+      const remaining = 3 - (parseInt(attempts || "0") + 1);
+      return res.status(400).json({
+        error: `Invalid OTP. ${remaining} attempt${remaining !== 1 ? "s" : ""} remaining.`,
+      });
     }
 
     if (newPassword !== confirmPassword) {
@@ -528,7 +204,6 @@ exports.resetPassword = async (req, res) => {
     }
 
     const passwordRegex = /^(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/;
-
     if (!passwordRegex.test(newPassword)) {
       return res.status(400).json({
         error: "Password must be 8+ chars, include uppercase, number, special char",
@@ -536,30 +211,30 @@ exports.resetPassword = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-
     await prisma.user.update({
       where: { email },
       data: { password: hashedPassword },
     });
 
-
-    await redis.del(`reset:${email}`);
-    await redis.del(`otp_cooldown:${email}`);
-    await redis.del(`otp_attempts:${email}`);
+    // Clean up all OTP keys
+    await Promise.all([
+      redis.del(`reset:${email}`),
+      redis.del(`otp_cooldown:${email}`),
+      redis.del(`otp_attempts:${email}`),
+    ]);
 
     logger.info("✅ Password reset successful", { email });
-
     res.json({
-      message: "Password updated successfully",
+      message: "Password updated successfully. Please login.",
       redirect: "/login",
     });
-
   } catch (err) {
     logger.error("🔥 Reset password error", err);
     res.status(500).json({ error: "Failed to reset password" });
   }
 };
 
+// ── GitHub OAuth ──────────────────────────────────────────────────────────────
 exports.githubLogin = (req, res) => {
   const githubURL = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=user:email`;
   res.redirect(githubURL);
@@ -569,11 +244,11 @@ exports.githubCallback = async (req, res) => {
   try {
     const { code } = req.query;
 
-
     if (!code) {
       return res.redirect(`${process.env.FRONTEND_URL}/login?error=missing_code`);
     }
 
+    // Exchange code for access token
     const tokenRes = await axios.post(
       "https://github.com/login/oauth/access_token",
       {
@@ -586,12 +261,12 @@ exports.githubCallback = async (req, res) => {
 
     const accessToken = tokenRes.data.access_token;
 
-
     if (!accessToken) {
       logger.error("GitHub OAuth — no access token", tokenRes.data);
       return res.redirect(`${process.env.FRONTEND_URL}/login?error=github_token_failed`);
     }
 
+    // Fetch GitHub profile + emails in parallel
     const [userRes, emailRes] = await Promise.all([
       axios.get("https://api.github.com/user", {
         headers: { Authorization: `Bearer ${accessToken}` },
@@ -601,27 +276,40 @@ exports.githubCallback = async (req, res) => {
       }),
     ]);
 
+    const githubUser = userRes.data;
     const primaryEmail =
+      emailRes.data.find((e) => e.primary && e.verified)?.email ||
       emailRes.data.find((e) => e.primary)?.email ||
       emailRes.data[0]?.email;
 
-   
     if (!primaryEmail) {
       return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
     }
 
-    const githubUser = userRes.data;
-
+    // Upsert user — always sync githubUsername + avatarUrl
     let user = await prisma.user.findUnique({ where: { email: primaryEmail } });
 
     if (!user) {
+      // First-time GitHub login — create account
       user = await prisma.user.create({
         data: {
           id: "usr_" + nanoid(10),
           fullName: githubUser.name || githubUser.login,
           email: primaryEmail,
-          password: await bcrypt.hash(nanoid(), 10),
+          password: await bcrypt.hash(nanoid(20), 10), // dummy password
           role: 2,
+          githubUsername: githubUser.login,       // ← store GitHub username
+          avatarUrl: githubUser.avatar_url || null, // ← store avatar URL
+        },
+      });
+    } else {
+      // Returning user — update GitHub fields to stay in sync
+      user = await prisma.user.update({
+        where: { email: primaryEmail },
+        data: {
+          githubUsername: githubUser.login,
+          avatarUrl: githubUser.avatar_url || null,
+          lastLoginAt: new Date(),
         },
       });
     }
@@ -629,9 +317,8 @@ exports.githubCallback = async (req, res) => {
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: process.env.JWT_EXPIRES_IN || "24h" }
     );
-
 
     await redis.set(
       `session:${user.id}`,
@@ -646,10 +333,10 @@ exports.githubCallback = async (req, res) => {
       86400
     );
 
-    logger.info("✅ GitHub login successful", { userId: user.id });
+    logger.info("✅ GitHub login", { userId: user.id, github: githubUser.login });
 
+    // Redirect to frontend — OAuthSuccess.jsx will call /auth/me to get full user
     res.redirect(`${process.env.FRONTEND_URL}/oauth-success?token=${token}`);
-
   } catch (err) {
     logger.error("🔥 GitHub OAuth error", err);
     res.redirect(`${process.env.FRONTEND_URL}/login?error=github`);

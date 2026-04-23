@@ -7,21 +7,25 @@ datasource db {
 }
 
 model User {
-  id          String    @id
-  fullName    String
-  email       String    @unique
-  password    String
-  role        Int
-  createdAt   DateTime  @default(now())
-  lastLoginAt DateTime?
+  id             String    @id
+  fullName       String
+  email          String    @unique
+  password       String
+  role           Int       @default(2)
+  githubUsername String?
+  avatarUrl      String?
+  createdAt      DateTime  @default(now())
+  lastLoginAt    DateTime?
+  prJobs         PrJob[]
 }
 
 model PrJob {
   id        String     @id @default(cuid())
   prUrl     String
-  status    String
+  status    String     @default("analyzing")
   userId    String
   createdAt DateTime   @default(now())
+  user      User       @relation(fields: [userId], references: [id])
   stepLogs  StepLog[]
 }
 
@@ -29,7 +33,7 @@ model StepLog {
   id        String   @id @default(cuid())
   prId      String
   step      String
-  status    String
+  status    String   @default("pending")
   details   String?
   createdAt DateTime @default(now())
   pr        PrJob    @relation(fields: [prId], references: [id])

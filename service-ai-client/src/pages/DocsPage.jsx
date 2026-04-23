@@ -23,7 +23,8 @@ const METHOD_COLOR = { GET: "#22d3ee", POST: "#4ade80", PATCH: "#f59e0b", DELETE
 export default function DocsPage() {
   return (
     <DashLayout>
-      <div style={{ maxWidth: "860px" }}>
+      {/* <div style={{ maxWidth: "860px" }}> */}
+      <div style={{ width: "100%" }}>
         <div style={{ marginBottom: "28px" }}>
           <h1 style={{ fontSize: "22px", fontWeight: 800, letterSpacing: "-0.5px", color: V("dt"), marginBottom: "4px" }}>API Documentation</h1>
           <p style={{ color: V("dt2"), fontSize: "13px", marginBottom: "16px" }}>

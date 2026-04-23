@@ -57,7 +57,8 @@ export default function Dashboard() {
 
   return (
     <DashLayout>
-      <div style={{ maxWidth: "900px" }}>
+      {/* <div style={{ maxWidth: "900px" }}> */}
+      <div style={{ width: "100%" }}>
 
         {/* Welcome */}
         <div style={{ marginBottom: "28px" }}>
