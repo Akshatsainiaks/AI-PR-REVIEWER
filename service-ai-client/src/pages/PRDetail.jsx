@@ -250,7 +250,7 @@ export default function PRDetail() {
         )}
         
         {isCompleted && (
-          <DiffViewer prId={prId} />
+          <DiffViewer prId={prId} hasAiChanges={!!currentPR?.analysis?.create_pr_result} />
         )}
       </div>
     </DashLayout>

@@ -236,7 +236,8 @@ exports.resetPassword = async (req, res) => {
 
 // ── GitHub OAuth ──────────────────────────────────────────────────────────────
 exports.githubLogin = (req, res) => {
-  const githubURL = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=user:email`;
+  const redirectUri = process.env.GITHUB_CALLBACK_URL || "http://localhost:3000/api/auth/github/callback";
+  const githubURL = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&redirect_uri=${redirectUri}&scope=user:email`;
   res.redirect(githubURL);
 };
 
@@ -249,11 +250,13 @@ exports.githubCallback = async (req, res) => {
     }
 
     // Exchange code for access token
+    const redirectUri = process.env.GITHUB_CALLBACK_URL || "http://localhost:3000/api/auth/github/callback";
     const tokenRes = await axios.post(
       "https://github.com/login/oauth/access_token",
       {
         client_id: process.env.GITHUB_CLIENT_ID,
         client_secret: process.env.GITHUB_CLIENT_SECRET,
+        redirect_uri: redirectUri,
         code,
       },
       { headers: { Accept: "application/json" } }
@@ -277,10 +280,12 @@ exports.githubCallback = async (req, res) => {
     ]);
 
     const githubUser = userRes.data;
-    const primaryEmail =
+    const rawEmail =
       emailRes.data.find((e) => e.primary && e.verified)?.email ||
       emailRes.data.find((e) => e.primary)?.email ||
       emailRes.data[0]?.email;
+      
+    const primaryEmail = rawEmail ? rawEmail.toLowerCase().trim() : null;
 
     if (!primaryEmail) {
       return res.redirect(`${process.env.FRONTEND_URL}/login?error=no_email`);
