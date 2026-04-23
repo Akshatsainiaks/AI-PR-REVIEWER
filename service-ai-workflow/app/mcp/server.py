@@ -272,12 +272,16 @@ def commit_and_push(workspace: str, branch: str, message: str) -> dict:
             output = commit_res.stdout + commit_res.stderr
             if "nothing to commit" in output.lower():
                 logger.info("Nothing to commit (working tree clean). Still attempting push.")
+                # We can still push the branch, but we note there were no changes
+                has_changes = False
             else:
                 logger.error(f"Commit failed: {output}")
                 return {"status": "error", "message": "Commit failed", "stderr": output}
+        else:
+            has_changes = True
 
         push_res = subprocess.run(
-            ["git", "push", "origin", branch],
+            ["git", "push", "-f", "origin", branch],
             cwd=workspace,
             capture_output=True,
             text=True,
@@ -287,7 +291,7 @@ def commit_and_push(workspace: str, branch: str, message: str) -> dict:
             logger.error(f"Push failed: {push_res.stderr}")
             return {"status": "error", "message": "Push failed", "stderr": push_res.stderr}
 
-        return {"status": "success", "message": "Committed and pushed successfully"}
+        return {"status": "success", "message": "Committed and pushed successfully", "has_changes": has_changes}
     except subprocess.CalledProcessError as e:
         logger.error(f"Git execution error: {str(e)}")
         return {"status": "error", "message": "Git command failed", "stderr": str(e)}

@@ -44,7 +44,7 @@ exports.analyzePR = async (req, res) => {
       },
     });
 
-    const steps = ["fetch_pr", "clone_repo", "analyze_code", "generate_review"];
+    const steps = ["fetch_pr", "analyze_code", "clone_repo", "generate_review"];
 
     await prisma.stepLog.createMany({
       data: steps.map((step) => ({
