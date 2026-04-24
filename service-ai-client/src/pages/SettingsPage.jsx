@@ -40,8 +40,6 @@ export default function SettingsPage() {
   const TABS = [
     { id: "appearance",    label: "Appearance",     icon: "🎨" },
     { id: "account",       label: "Account",         icon: "👤" },
-    { id: "notifications", label: "Notifications",   icon: "🔔" },
-    { id: "api",           label: "API & Webhooks",  icon: "⚡" },
   ];
 
   const THEMES = [
@@ -107,12 +105,10 @@ export default function SettingsPage() {
             )}
 
             {activeTab === "account" && (
-              <Section title="Account" desc="Your profile and account information">
-                <InfoRow label="Full name" value={user?.fullName || "—"} />
-                <InfoRow label="Email address" value={user?.email || "—"} mono />
-                <InfoRow label="Role" value={user?.role === 1 ? "Admin" : "User"} />
-                <InfoRow label="User ID" value={user?.id || "—"} mono />
-                <div style={{ paddingTop: "16px" }}>
+              <Section title="Account" desc="Manage your account security">
+                <ChangePasswordForm email={user?.email} />
+
+                <div style={{ paddingTop: "16px", marginTop: "24px", borderTop: "1px solid var(--dborder)" }}>
                   <button onClick={() => { dispatch(logout()); navigate("/"); }} style={{
                     padding: "9px 20px", background: "rgba(220,38,38,0.08)",
                     border: "1px solid rgba(220,38,38,0.2)", borderRadius: "8px",
@@ -121,35 +117,6 @@ export default function SettingsPage() {
                   }}>
                     Sign out
                   </button>
-                </div>
-              </Section>
-            )}
-
-            {activeTab === "notifications" && (
-              <Section title="Notifications" desc="Control what you get notified about">
-                <NotifRow label="PR analysis completed" desc="Get notified when a review finishes" defaultOn />
-                <NotifRow label="PR analysis failed" desc="Alert when an analysis run encounters an error" defaultOn />
-                <NotifRow label="Weekly digest" desc="Summary of your review activity every Monday" defaultOn={false} />
-                <NotifRow label="System announcements" desc="Important Revuzen AI feature updates" defaultOn />
-              </Section>
-            )}
-
-            {activeTab === "api" && (
-              <Section title="API & Webhooks" desc="Integrate Revuzen AI with your CI/CD workflow">
-                <InfoRow label="Agent webhook" value="POST /api/webhooks/agent" mono />
-                <InfoRow label="GitHub webhook" value="POST /api/webhooks/github" mono />
-                <InfoRow label="Base URL" value={`${window.location.protocol}//${window.location.host}/api`} mono />
-                <InfoRow label="Auth" value="Bearer JWT (24h expiry)" />
-                <InfoRow label="Webhook auth" value="HMAC SHA256 · x-signature header" mono />
-                <div style={{ paddingTop: "16px" }}>
-                  <a href="/api/docs" target="_blank" rel="noreferrer" style={{
-                    display: "inline-flex", alignItems: "center", gap: "6px",
-                    padding: "9px 18px", background: V("dag"),
-                    border: `1px solid ${V("da")}44`, borderRadius: "8px",
-                    color: V("da"), fontSize: "13px", fontWeight: 600, textDecoration: "none",
-                  }}>
-                    Open Swagger UI ↗
-                  </a>
                 </div>
               </Section>
             )}
@@ -170,33 +137,112 @@ function Section({ title, desc, children }) {
   );
 }
 
-function InfoRow({ label, value, mono }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid var(--dborder)" }}>
-      <span style={{ fontSize: "13px", color: "var(--dt2)" }}>{label}</span>
-      <span style={{ fontSize: "12px", color: "var(--dt)", fontWeight: 500, fontFamily: mono ? "'Fira Code',monospace" : "inherit", maxWidth: "60%", textAlign: "right", wordBreak: "break-all" }}>
-        {value}
-      </span>
-    </div>
-  );
-}
 
-function NotifRow({ label, desc, defaultOn }) {
-  const [on, setOn] = useState(defaultOn ?? true);
+
+function ChangePasswordForm({ email }) {
+  const [step, setStep] = useState(1);
+  const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "", otp: "" });
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState("");
+
+  const handleInitialSubmit = async (e) => {
+    e.preventDefault();
+    if (form.newPassword !== form.confirmPassword) return setError("New passwords do not match");
+    if (form.newPassword.length < 8) return setError("Password must be at least 8 characters");
+    
+    setError("");
+    setLoading(true);
+    try {
+      // 1. Verify current password via login API
+      const loginRes = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password: form.currentPassword })
+      });
+      if (!loginRes.ok) {
+        setLoading(false);
+        return setError("Incorrect current password");
+      }
+      
+      // 2. Request OTP via forgot-password API
+      const forgotRes = await fetch(`${import.meta.env.VITE_API_URL}/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      if (!forgotRes.ok) throw new Error("Failed to send OTP. Try again later.");
+      
+      setStep(2);
+      setSuccess("OTP sent to your email. Please enter it to confirm changes.");
+    } catch (err) {
+      setError(err.message || "Something went wrong");
+    }
+    setLoading(false);
+  };
+
+  const handleFinalSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      // 3. Confirm change via reset-password API
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/reset-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, otp: form.otp, newPassword: form.newPassword, confirmPassword: form.confirmPassword })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to reset password");
+      
+      setStep(3);
+      setSuccess("Password updated successfully!");
+    } catch (err) {
+      setError(err.message || "Invalid OTP or error occurred");
+    }
+    setLoading(false);
+  };
+
+  const inp = {
+    width: "100%", padding: "9px 12px", background: "var(--db3)", border: "1px solid var(--dborder)",
+    borderRadius: "8px", color: "var(--dt)", fontSize: "13px", outline: "none", marginBottom: "12px",
+    fontFamily: "'Plus Jakarta Sans',sans-serif"
+  };
+
+  if (step === 3) {
+    return <div style={{ marginTop: "24px", padding: "16px", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--dgreen)", borderRadius: "8px", fontSize: "13px", fontWeight: 500 }}>{success}</div>;
+  }
+
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 0", borderBottom: "1px solid var(--dborder)" }}>
-      <div style={{ flex: 1, paddingRight: "20px" }}>
-        <p style={{ fontSize: "13px", color: "var(--dt)", fontWeight: 500, marginBottom: "2px" }}>{label}</p>
-        <p style={{ fontSize: "12px", color: "var(--dt2)" }}>{desc}</p>
-      </div>
-      <button onClick={() => setOn(v => !v)} style={{
-        width: 44, height: 24, borderRadius: "12px",
-        background: on ? "var(--da)" : "var(--db3)",
-        border: `1px solid ${on ? "var(--da)" : "var(--dborder)"}`,
-        cursor: "pointer", position: "relative", transition: "all 0.25s", flexShrink: 0,
-      }}>
-        <div style={{ width: 18, height: 18, borderRadius: "50%", background: "#fff", position: "absolute", top: "2px", left: on ? "22px" : "2px", transition: "left 0.25s", boxShadow: "0 1px 4px rgba(0,0,0,0.2)" }} />
-      </button>
+    <div>
+      <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--dt)", marginBottom: "4px" }}>Change Password</h3>
+      <p style={{ fontSize: "12px", color: "var(--dt2)", marginBottom: "16px" }}>Update your password using your current password and email confirmation.</p>
+      
+      {error && <div style={{ padding: "10px 12px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "var(--dred)", fontSize: "12px", borderRadius: "8px", marginBottom: "16px" }}>{error}</div>}
+      {success && step === 2 && <div style={{ padding: "10px 12px", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--dgreen)", fontSize: "12px", borderRadius: "8px", marginBottom: "16px" }}>{success}</div>}
+
+      {step === 1 ? (
+        <form onSubmit={handleInitialSubmit}>
+          <input style={inp} type="password" required placeholder="Current Password" value={form.currentPassword} onChange={e => setForm({...form, currentPassword: e.target.value})} />
+          <input style={inp} type="password" required placeholder="New Password" value={form.newPassword} onChange={e => setForm({...form, newPassword: e.target.value})} />
+          <input style={inp} type="password" required placeholder="Confirm New Password" value={form.confirmPassword} onChange={e => setForm({...form, confirmPassword: e.target.value})} />
+          <button disabled={loading} style={{ padding: "9px 16px", background: "var(--da)", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>
+            {loading ? "Verifying..." : "Continue"}
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={handleFinalSubmit}>
+          <input style={inp} type="text" required placeholder="Enter 6-digit OTP from email" value={form.otp} onChange={e => setForm({...form, otp: e.target.value})} />
+          <div style={{ display: "flex", gap: "12px" }}>
+            <button disabled={loading} style={{ padding: "9px 16px", background: "var(--da)", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>
+              {loading ? "Updating..." : "Confirm & Change Password"}
+            </button>
+            <button type="button" onClick={() => { setStep(1); setSuccess(""); setError(""); }} style={{ padding: "9px 16px", background: "transparent", color: "var(--dt2)", border: "1px solid var(--dborder)", borderRadius: "8px", fontSize: "13px", cursor: "pointer" }}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

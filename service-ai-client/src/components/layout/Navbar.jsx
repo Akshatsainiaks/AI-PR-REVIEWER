@@ -16,7 +16,7 @@ const IcLogout = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="non
 const IcAnalytics = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>;
 
 const Logo = () => (
-  <svg width="124" height="28" viewBox="0 0 148 34" fill="none" xmlns="http://www.w3.org/2000/svg" style={{ transform: "scale(0.85)", transformOrigin: "left center" }}>
+  <svg width="148" height="34" viewBox="0 0 148 34" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
       <linearGradient id="lg1_nav" x1="0%" y1="0%" x2="100%" y2="100%">
         <stop offset="0%" stopColor="var(--da)"/>
@@ -88,12 +88,7 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
     setDropOpen(false);
   };
 
-  const NAV_ITEMS = [
-    { label: "New Review", path: "/dashboard", icon: <IcPlus />, primary: true },
-    { label: "History",    path: "/prs",       icon: <IcHistory /> },
-    { label: "Analytics",  path: "/analytics", icon: <IcChart /> },
-    { label: "Docs",       path: "/docs",       icon: <IcDoc /> },
-  ];
+
 
   return (
     <>
@@ -109,34 +104,26 @@ export default function Navbar({ sidebarOpen, setSidebarOpen }) {
           <Logo />
         </Link>
 
-        {/* Center: Nav items */}
-        <div style={{ display: "flex", alignItems: "center", gap: "2px" }}>
-          {NAV_ITEMS.map((item) => (
-            <button key={item.label} onClick={() => navigate(item.path)} style={{
-              display: "flex", alignItems: "center", gap: "5px",
-              padding: "6px 12px", borderRadius: "8px", fontSize: "13px",
-              fontWeight: item.primary ? 700 : 500,
-              background: item.primary ? V("da") : "transparent",
-              color: item.primary ? "#fff" : V("dt2"),
-              border: "none", cursor: "pointer", transition: "all 0.15s",
-              fontFamily: "'Plus Jakarta Sans',sans-serif",
-            }}
-              onMouseEnter={(e) => {
-                if (!item.primary) { e.currentTarget.style.background = V("db3"); e.currentTarget.style.color = V("dt"); }
-                else e.currentTarget.style.filter = "brightness(1.1)";
-              }}
-              onMouseLeave={(e) => {
-                if (!item.primary) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = V("dt2"); }
-                else e.currentTarget.style.filter = "brightness(1)";
-              }}
-            >
-              {item.icon} {item.label}
-            </button>
-          ))}
-        </div>
+        {/* Center: Empty space */}
+        <div style={{ flex: 1 }} />
 
-        {/* Right: User dropdown only (no theme toggle) */}
-        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+        {/* Right: Actions & User dropdown */}
+        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+          <button onClick={() => navigate("/dashboard")} style={{
+            display: "flex", alignItems: "center", gap: "6px",
+            padding: "7px 14px", borderRadius: "8px", fontSize: "13px",
+            fontWeight: 700, background: V("da"), color: "#fff",
+            border: "none", cursor: "pointer", transition: "all 0.15s",
+            fontFamily: "'Plus Jakarta Sans',sans-serif",
+          }}
+            onMouseEnter={(e) => e.currentTarget.style.filter = "brightness(1.1)"}
+            onMouseLeave={(e) => e.currentTarget.style.filter = "brightness(1)"}
+          >
+            <IcPlus /> New Review
+          </button>
+
+          <div style={{ width: "1px", height: "24px", background: V("dborder") }} />
+
           <div style={{ position: "relative" }}>
             <button onClick={() => setDropOpen((v) => !v)} style={{
               display: "flex", alignItems: "center", gap: "7px",
