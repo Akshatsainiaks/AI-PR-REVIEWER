@@ -23,7 +23,6 @@ export default function DiffViewer({ prId, hasAiChanges }) {
         setLoading(false);
       }
     };
-    
     if (prId) fetchDiff();
   }, [prId]);
 
@@ -60,15 +59,16 @@ export default function DiffViewer({ prId, hasAiChanges }) {
 
   return (
     <div className="diff-viewer-container" style={{ marginTop: "24px", borderRadius: "16px", overflow: "hidden", border: `1px solid ${V("dborder")}` }}>
-      {/* Split Header for Left/Right sides */}
-      <div style={{ display: "flex", width: "100%", background: V("db3"), padding: "12px 16px", borderBottom: `1px solid ${V("dborder")}` }}>
-        <div style={{ flex: 1, fontWeight: 600, color: V("dt2"), fontSize: "13px", paddingLeft: "16px" }}>
-          {hasAiChanges ? "Your Original Code" : "Base Branch"}
+      {hasAiChanges && (
+        <div style={{ display: "flex", width: "100%", background: V("db3"), padding: "12px 16px", borderBottom: `1px solid ${V("dborder")}` }}>
+          <div style={{ flex: 1, fontWeight: 600, color: V("dt2"), fontSize: "13px", paddingLeft: "16px" }}>
+            Your Original Code
+          </div>
+          <div style={{ flex: 1, fontWeight: 600, color: "var(--dgreen)", fontSize: "13px", paddingLeft: "16px" }}>
+            ✨ AI Suggested Fixes
+          </div>
         </div>
-        <div style={{ flex: 1, fontWeight: 600, color: hasAiChanges ? "var(--dgreen)" : V("dt"), fontSize: "13px", paddingLeft: "16px" }}>
-          {hasAiChanges ? "✨ AI Suggested Fixes" : "Your Code"}
-        </div>
-      </div>
+      )}
       <style dangerouslySetInnerHTML={{__html: `
         .d2h-wrapper {
           background-color: var(--db2);
@@ -138,6 +138,16 @@ export default function DiffViewer({ prId, hasAiChanges }) {
         }
       `}} />
       <div dangerouslySetInnerHTML={{ __html: html }} />
+      {!hasAiChanges && (
+        <div style={{ display: "flex", width: "100%", background: V("db3"), padding: "12px 16px", borderBottom: `1px solid ${V("dborder")}` }}>
+          <div style={{ flex: 1, fontWeight: 600, color: V("dt2"), fontSize: "13px", paddingLeft: "16px" }}>
+            Base Branch
+          </div>
+          <div style={{ flex: 1, fontWeight: 600, color: V("dt"), fontSize: "13px", paddingLeft: "16px" }}>
+            Your Code
+          </div>
+        </div>
+      )}
     </div>
   );
 }
