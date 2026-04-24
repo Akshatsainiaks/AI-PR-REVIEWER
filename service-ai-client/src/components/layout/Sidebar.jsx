@@ -14,25 +14,10 @@ const IcRight = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none
 
 const SECTIONS = [
   {
-    title: "Workspace",
     items: [
       { icon: <IcDash />, label: "Dashboard", path: "/dashboard" },
       { icon: <IcPRs />, label: "All PRs", path: "/prs" },
       { icon: <IcAnalytics />, label: "Analytics", path: "/analytics" },
-    ],
-  },
-  {
-    title: "Filter",
-    items: [
-      { icon: <IcClock />,   label: "Analyzing", path: "/prs?status=analyzing", dotColor: "var(--da)" },
-      { icon: <IcCheck />,   label: "Completed", path: "/prs?status=completed", dotColor: "var(--dgreen)" },
-      { icon: <IcXCircle />, label: "Failed",    path: "/prs?status=failed",    dotColor: "var(--dred)" },
-    ],
-  },
-  {
-    title: "Resources",
-    items: [
-      { icon: <IcDocs />, label: "API Docs", path: "/docs" },
     ],
   },
 ];
@@ -58,8 +43,8 @@ export default function Sidebar({ open, onToggle }) {
     }}>
       <div style={{ flex: 1, overflowY: "auto", overflowX: "hidden", padding: open ? "14px 8px" : "10px 6px" }}>
         {SECTIONS.map((section) => (
-          <div key={section.title} style={{ marginBottom: open ? "16px" : "10px" }}>
-            {open && (
+          <div key={section.title || "main"} style={{ marginBottom: open ? "16px" : "10px" }}>
+            {open && section.title && (
               <p style={{
                 fontSize: "9px", fontWeight: 700, color: V("dt3"), letterSpacing: "1.5px",
                 textTransform: "uppercase", padding: "0 8px", marginBottom: "5px",
