@@ -26,6 +26,7 @@ export default function Sidebar({ open, onToggle }) {
   const location = useLocation();
 
   const isActive = (itemPath) => {
+    if (itemPath.startsWith("?")) return false;
     const [path, query] = itemPath.split("?");
     if (query) return location.pathname === path && location.search === `?${query}`;
     return location.pathname === path;
@@ -55,11 +56,10 @@ export default function Sidebar({ open, onToggle }) {
             )}
             {section.items.map((item) => {
               const active = isActive(item.path);
-              const [navPath, navSearch] = item.path.split("?");
               return (
                 <Link
                   key={item.label}
-                  to={navPath + (navSearch ? `?${navSearch}` : "")}
+                  to={item.path}
                   title={!open ? item.label : undefined}
                   style={{
                     display: "flex", alignItems: "center",
