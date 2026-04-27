@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const V = (p) => `var(--${p})`;
 
@@ -12,15 +12,8 @@ const IcDocs = () => <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
 const IcLeft = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="15 18 9 12 15 6"/></svg>;
 const IcRight = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>;
 
-const SECTIONS = [
-  {
-    items: [
-      { icon: <IcDash />, label: "Dashboard", path: "/dashboard" },
-      { icon: <IcPRs />, label: "All PRs", path: "/prs" },
-      { icon: <IcAnalytics />, label: "Analytics", path: "/analytics" },
-    ],
-  },
-];
+// Remove section title since no sections are defined
+const SECTIONS = [];
 
 export default function Sidebar({ open, onToggle }) {
   const location = useLocation();
