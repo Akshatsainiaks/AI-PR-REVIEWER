@@ -15,20 +15,39 @@ const IcRight = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none
 const SECTIONS = [
   {
     items: [
-      { icon: <IcDash />, label: "Dashboard", path: "/dashboard" },
+      { icon: <IcDash />, label: "Dashboard", path: "/dashboard", dotColor: "var(--da)" },
       { icon: <IcPRs />, label: "All PRs", path: "/prs" },
       { icon: <IcAnalytics />, label: "Analytics", path: "/analytics" },
+      { icon: <IcClock />, label: "Clock", path: "/clock" },
+      { icon: <IcCheck />, label: "Check", path: "/check" },
+      { icon: <IcXCircle />, label: "X Circle", path: "/x-circle" },
+      { icon: <IcDocs />, label: "Docs", path: "/docs" },
+    ],
+  },
+  {
+    title: "Actions",
+    items: [
+      { icon: <IcLeft />, label: "Left", path: "/left" },
+      { icon: <IcRight />, label: "Right", path: "/right" },
+    ],
+  },
+  {
+    title: "Dropdowns",
+    items: [
+      { icon: <IcDash />, label: "Dropdown", path: "/dropdown" },
+      { icon: <IcPRs />, label: "Dropdown PRs", path: "/dropdown-prs" },
     ],
   },
 ];
 
 export default function Sidebar({ open, onToggle }) {
   const location = useLocation();
+  const navPath = location.pathname;
+  const navSearch = location.search !== "";
 
   const isActive = (itemPath) => {
-    const [path, query] = itemPath.split("?");
-    if (query) return location.pathname === path && location.search === `?${query}`;
-    return location.pathname === path;
+    const [itemPathPath, itemPathQuery] = itemPath.split("?");
+    return itemPathPath === navPath && ((itemPathQuery && navSearch && itemPathQuery === navSearch) || (!itemPathQuery && !navSearch));
   };
 
   return (
@@ -55,11 +74,11 @@ export default function Sidebar({ open, onToggle }) {
             )}
             {section.items.map((item) => {
               const active = isActive(item.path);
-              const [navPath, navSearch] = item.path.split("?");
+              const [itemPathPath, itemPathQuery] = item.path.split("?");
               return (
                 <Link
                   key={item.label}
-                  to={navPath + (navSearch ? `?${navSearch}` : "")}
+                  to={`${itemPathPath}${itemPathQuery ? `?${itemPathQuery}` : ""}`}
                   title={!open ? item.label : undefined}
                   style={{
                     display: "flex", alignItems: "center",
@@ -92,18 +111,4 @@ export default function Sidebar({ open, onToggle }) {
       <div style={{ padding: "10px", borderTop: `1px solid ${V("dborder")}`, display: "flex", justifyContent: open ? "flex-end" : "center" }}>
         <button
           onClick={onToggle}
-          title={open ? "Collapse" : "Expand"}
-          style={{
-            width: 30, height: 30, borderRadius: "8px", background: V("db3"),
-            border: `1px solid ${V("dborder")}`, cursor: "pointer", color: V("dt2"),
-            display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = V("da"); e.currentTarget.style.color = V("da"); }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = V("dborder"); e.currentTarget.style.color = V("dt2"); }}
-        >
-          {open ? <IcLeft /> : <IcRight />}
-        </button>
-      </div>
-    </aside>
-  );
-}
+          title={
