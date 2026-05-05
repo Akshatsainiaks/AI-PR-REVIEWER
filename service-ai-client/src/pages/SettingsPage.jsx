@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { logout } from "../store/slices/authSlice";
 import DashLayout from "../components/layout/DashLayout";
 import { useDashTheme } from "../hooks/useDashTheme";
+import { IcLogout } from "../components/layout/Navbar";
 
 const V = (p) => `var(--${p})`;
 
@@ -137,8 +138,6 @@ function Section({ title, desc, children }) {
   );
 }
 
-
-
 function ChangePasswordForm({ email }) {
   const [step, setStep] = useState(1);
   const [form, setForm] = useState({ currentPassword: "", newPassword: "", confirmPassword: "", otp: "" });
@@ -150,7 +149,7 @@ function ChangePasswordForm({ email }) {
     e.preventDefault();
     if (form.newPassword !== form.confirmPassword) return setError("New passwords do not match");
     if (form.newPassword.length < 8) return setError("Password must be at least 8 characters");
-    
+
     setError("");
     setLoading(true);
     try {
@@ -164,7 +163,7 @@ function ChangePasswordForm({ email }) {
         setLoading(false);
         return setError("Incorrect current password");
       }
-      
+
       // 2. Request OTP via forgot-password API
       const forgotRes = await fetch(`${import.meta.env.VITE_API_URL}/auth/forgot-password`, {
         method: "POST",
@@ -172,7 +171,7 @@ function ChangePasswordForm({ email }) {
         body: JSON.stringify({ email })
       });
       if (!forgotRes.ok) throw new Error("Failed to send OTP. Try again later.");
-      
+
       setStep(2);
       setSuccess("OTP sent to your email. Please enter it to confirm changes.");
     } catch (err) {
@@ -189,60 +188,4 @@ function ChangePasswordForm({ email }) {
       // 3. Confirm change via reset-password API
       const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/reset-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, otp: form.otp, newPassword: form.newPassword, confirmPassword: form.confirmPassword })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to reset password");
-      
-      setStep(3);
-      setSuccess("Password updated successfully!");
-    } catch (err) {
-      setError(err.message || "Invalid OTP or error occurred");
-    }
-    setLoading(false);
-  };
-
-  const inp = {
-    width: "100%", padding: "9px 12px", background: "var(--db3)", border: "1px solid var(--dborder)",
-    borderRadius: "8px", color: "var(--dt)", fontSize: "13px", outline: "none", marginBottom: "12px",
-    fontFamily: "'Plus Jakarta Sans',sans-serif"
-  };
-
-  if (step === 3) {
-    return <div style={{ marginTop: "24px", padding: "16px", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--dgreen)", borderRadius: "8px", fontSize: "13px", fontWeight: 500 }}>{success}</div>;
-  }
-
-  return (
-    <div>
-      <h3 style={{ fontSize: "14px", fontWeight: 700, color: "var(--dt)", marginBottom: "4px" }}>Change Password</h3>
-      <p style={{ fontSize: "12px", color: "var(--dt2)", marginBottom: "16px" }}>Update your password using your current password and email confirmation.</p>
-      
-      {error && <div style={{ padding: "10px 12px", background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.2)", color: "var(--dred)", fontSize: "12px", borderRadius: "8px", marginBottom: "16px" }}>{error}</div>}
-      {success && step === 2 && <div style={{ padding: "10px 12px", background: "rgba(34,197,94,0.1)", border: "1px solid rgba(34,197,94,0.2)", color: "var(--dgreen)", fontSize: "12px", borderRadius: "8px", marginBottom: "16px" }}>{success}</div>}
-
-      {step === 1 ? (
-        <form onSubmit={handleInitialSubmit}>
-          <input style={inp} type="password" required placeholder="Current Password" value={form.currentPassword} onChange={e => setForm({...form, currentPassword: e.target.value})} />
-          <input style={inp} type="password" required placeholder="New Password" value={form.newPassword} onChange={e => setForm({...form, newPassword: e.target.value})} />
-          <input style={inp} type="password" required placeholder="Confirm New Password" value={form.confirmPassword} onChange={e => setForm({...form, confirmPassword: e.target.value})} />
-          <button disabled={loading} style={{ padding: "9px 16px", background: "var(--da)", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>
-            {loading ? "Verifying..." : "Continue"}
-          </button>
-        </form>
-      ) : (
-        <form onSubmit={handleFinalSubmit}>
-          <input style={inp} type="text" required placeholder="Enter 6-digit OTP from email" value={form.otp} onChange={e => setForm({...form, otp: e.target.value})} />
-          <div style={{ display: "flex", gap: "12px" }}>
-            <button disabled={loading} style={{ padding: "9px 16px", background: "var(--da)", color: "#fff", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: 600, cursor: loading ? "not-allowed" : "pointer" }}>
-              {loading ? "Updating..." : "Confirm & Change Password"}
-            </button>
-            <button type="button" onClick={() => { setStep(1); setSuccess(""); setError(""); }} style={{ padding: "9px 16px", background: "transparent", color: "var(--dt2)", border: "1px solid var(--dborder)", borderRadius: "8px", fontSize: "13px", cursor: "pointer" }}>
-              Cancel
-            </button>
-          </div>
-        </form>
-      )}
-    </div>
-  );
-}
+        headers: { "Content-Type": "application/json"
